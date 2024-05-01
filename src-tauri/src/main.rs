@@ -1,19 +1,18 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
-use crate::utils::{open_dcm_file, save_to_image, get_detail};
-use tauri::Manager;
+use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value};
+use crate::utils::{U8Array, U16Array};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
 use dicom::pixeldata::image::GrayImage;
-use dicom::dictionary_std::tags::{self};
+use dicom::dictionary_std::tags::{self, SPHERE_POWER};
 use ndarray::{s, Array, ArrayBase, Axis, Dim, OwnedRepr};
 use dicom::object::{FileDicomObject, InMemDicomObject, Tag};
 use dicom::{object::open_file, pixeldata::PixelDecoder};
 
 // TYPE
 type DcmObj = dicom::object::FileDicomObject<dicom::object::InMemDicomObject>;
-type U16Array = ArrayBase<OwnedRepr<u16>, Dim<[usize; 2]>>;
 type I32Array = ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>;
 type Obj = FileDicomObject<InMemDicomObject>;
 
@@ -23,18 +22,68 @@ fn processing(file_path: String, save_path: String) {
     match open_dcm_file(file_path) {
         Some(obj) => {
             let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
-            let arr=  pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
+            let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
 
             // details
             let hospital = get_detail(&obj, tags::INSTITUTION_NAME);
-            dbg!(hospital);
-            save_to_image(arr, save_path);
+            // ...
+            let new_arr = arr_correction(arr);
+            
+            let shape = new_arr.shape();
+            let h = shape[0];
+            let w = shape[1];
+            let hp = (0.15 * h as f32) as i32;
+            let wp = (0.05 * w as f32) as i32;
+
+            let crop = [
+                (hp),
+                (h as i32 -hp),
+                (wp),
+                (wp*2)
+            ];
+            let focus_l = new_arr.slice(s![
+                crop[0]..crop[1],crop[2]..crop[3]
+            ]).to_owned();
+
+            
+            find_common_value(focus_l, 0);
+            // dbg!(&new_arr.shape());
+            
         }, 
         None => {
             
         }
     }
 }
+
+fn arr_correction(arr: U16Array) -> U8Array {
+    // crop array as expect.
+    let shape = arr.shape();
+    let h = shape[0];
+    let w = shape[1];
+    // convert arr to vec to convert pixel value [0, 255]
+    let u8_gray: Vec<u8> = convert_to_u8(arr.clone().into_raw_vec(), arr.len());
+    let mut new_arr = Array::from_shape_vec((h, w), u8_gray).unwrap();
+    let shape = new_arr.shape();
+    let h = shape[0];
+    let w = shape[1];
+    // crop only area of test tool
+    let p = 0.24; // experimental number
+    if (h*w) > (2000*2000) {
+        let crop = [
+            (p*(h as f32)) as i32,
+            (h as f32 * (1.0-p)) as i32,
+            (w as f32 * p) as i32,
+            (w as f32 * (1.0-p)) as i32 
+        ];
+        new_arr = new_arr.slice(
+            s![crop[0]..crop[1], crop[2]..crop[3]]
+        ).to_owned();
+    }
+    new_arr
+}
+
+
 
 fn main() {
     tauri::Builder::default()
