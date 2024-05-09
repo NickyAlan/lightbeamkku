@@ -1,12 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
-use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value};
+use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line};
 use crate::utils::{U8Array, U16Array};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
 use dicom::pixeldata::image::GrayImage;
-use dicom::dictionary_std::tags::{self, SPHERE_POWER};
+use dicom::dictionary_std::tags::{self, FOCAL_DISTANCE, SPHERE_POWER};
 use ndarray::{s, Array, ArrayBase, Axis, Dim, OwnedRepr};
 use dicom::object::{FileDicomObject, InMemDicomObject, Tag};
 use dicom::{object::open_file, pixeldata::PixelDecoder};
@@ -28,27 +28,11 @@ fn processing(file_path: String, save_path: String) {
             let hospital = get_detail(&obj, tags::INSTITUTION_NAME);
             // ...
             let new_arr = arr_correction(arr);
-            
-            let shape = new_arr.shape();
-            let h = shape[0];
-            let w = shape[1];
-            let hp = (0.15 * h as f32) as i32;
-            let wp = (0.05 * w as f32) as i32;
-
-            let crop = [
-                (hp),
-                (h as i32 -hp),
-                (wp),
-                (wp*2)
-            ];
-            let focus_l = new_arr.slice(s![
-                crop[0]..crop[1],crop[2]..crop[3]
-            ]).to_owned();
-
-            
-            find_common_value(focus_l, 0);
-            // dbg!(&new_arr.shape());
-            
+            let (x1, y1, x2, y2) = find_center_line(new_arr.clone());
+            let theta_r = find_theta(x2, y1, y2);
+            let arr = rotate_array(theta_r, new_arr);
+            let [topy, midy, boty] = fint_horizontal_line(arr).as_slice().try_into().unwrap();
+            dbg!(topy, midy, boty);
         }, 
         None => {
             
