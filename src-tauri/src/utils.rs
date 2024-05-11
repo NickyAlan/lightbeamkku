@@ -202,6 +202,62 @@ pub fn fint_horizontal_line(arr: U8Array) -> Vec<i32> {
     ypoints
 }
 
+/// find vertical lines[x-axis]
+/// 
+/// Returns: (left(x_avg), center(x_avg), right(x_avg)) points
+pub fn find_vertical_line(arr: U8Array) -> Vec<i32> {
+    let mut xpoints = vec![];
+    let shape = arr.shape();
+    let h = shape[0];
+    let w = shape[1];
+    let hp = (0.05 * h as f32) as i32;
+    let wp = (0.04 * w as f32) as i32;
+
+    // left line
+    let crop = [hp*3, hp*7, wp, wp*6];
+    let focus_t = arr.slice(s![
+        crop[0]..crop[1], crop[2]..crop[3]
+    ]).to_owned();
+    let x1 = find_common_value(focus_t, 1) + crop[2];
+    let focus_b = arr.slice(s![
+        h as i32 - crop[1]..h as i32 - crop[0], crop[2]..crop[3]
+    ]).to_owned();
+    let x2 = find_common_value(focus_b, 1) + crop[2];
+    xpoints.push((x1+x2)/2);
+
+    // right line
+    let focus_t = arr.slice(s![
+        crop[0]..crop[1], w as i32 - crop[3]..w as i32 - crop[2]
+    ]).to_owned();
+    let x1 = find_common_value(focus_t, 1) + w as i32 - crop[3];
+    let focus_b = arr.slice(s![
+        h as i32 - crop[1]..h as i32 - crop[0], w as i32 - crop[3]..w as i32 - crop[2]
+    ]).to_owned();
+    let x2 = find_common_value(focus_b, 1) + w as i32 - crop[3];
+    xpoints.push((x1+x2)/2);
+
+    // center line
+    let hp = (0.18 * h as f32) as i32;
+    let wp = (0.20 * w as f32) as i32;
+    
+    let crop = [hp, hp*2, wp*2, wp*3];
+    let focus_t = arr.slice(s![
+        crop[0]..crop[1], crop[2]..crop[3]
+    ]).to_owned();
+    let x1 = find_common_value(focus_t, 1) + crop[2];
+    let focus_b = arr.slice(s![
+        h as i32 - crop[1].. h as i32 - crop[0], crop[2]..crop[3]
+    ]).to_owned();
+    let x2 = find_common_value(focus_b, 1) + crop[2];
+    xpoints.push((x1+x2)/2);
+    
+    // swap bottom and center in xpoints
+    let centerpoint = xpoints[2];
+    xpoints[2] = xpoints[1];
+    xpoints[1] = centerpoint;
+    xpoints
+}
+
 pub fn argmin(arr: U8Array, axis: u8) -> Vec<usize> {
     // argmin of each column(axis=0), row(axis=1)
     // return position that has minimum pixel value 
@@ -237,4 +293,25 @@ pub fn argmin(arr: U8Array, axis: u8) -> Vec<usize> {
         }
     }
     argmins 
+}
+
+/// convert number of pixel to centimeter as aspect ratio
+pub fn pixel2cm(ypoints: &Vec<i32>, pixels: i32, is_rotate: bool) -> f32 {
+    let _cm = (ypoints[2] - ypoints[1]) as f32;
+    let mut ratio = 7.0;
+    if is_rotate {
+        ratio = 9.0;
+    }
+    // 100.0 for 2 decimal round
+    (pixels as f32 *ratio*100.0/_cm).round() / 100.0
+}
+
+//// convert centimeter to number of pixel as aspect ratio
+pub fn cm2pixel(ypoints: &Vec<i32>, cm: f32, is_rotate: bool) -> i32 {   
+    let _cm = (ypoints[2] - ypoints[1]) as f32;
+    let mut ratio = 7.0;
+    if is_rotate {
+        ratio = 9.0;
+    }
+    (_cm*cm/ratio).round() as i32
 }

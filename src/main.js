@@ -5,7 +5,7 @@ const { convertFileSrc } = window.__TAURI__.tauri;
 async function process() {
   console.log("hello");
   const res = await invoke("processing", {
-    filePath: "c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir-L",
+    filePaths: ["c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir-L", "c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir"],
     savePath: "c:/Users/alant/Desktop/t0re.jpg",
   });
 }
