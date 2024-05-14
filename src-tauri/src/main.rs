@@ -2,13 +2,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
 use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line};
-use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel};
+use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
 use dicom::pixeldata::image::GrayImage;
 use dicom::dictionary_std::tags::{self, FOCAL_DISTANCE, SPHERE_POWER};
 use ndarray::{s, Array, ArrayBase, Axis, Dim, OwnedRepr};
-use dicom::object::{FileDicomObject, InMemDicomObject, Tag};
+use dicom::object::{pixeldata, FileDicomObject, InMemDicomObject, Tag};
 use dicom::{object::open_file, pixeldata::PixelDecoder};
 
 // TYPE
@@ -84,11 +84,15 @@ fn arr_correction(arr: U16Array) -> U8Array {
     new_arr
 }
 
+/// Return
+/// left, right, top, bottom
+/// 
+/// x1, x2, y1, y2, length, err
 fn find_rentangular_details(arr: U8Array, xpoints: Vec<i32>, ypoints: Vec<i32>) {
     let shape = arr.shape();
     let h = shape[0];
     let w = shape[1];
-
+    let mut res = vec![];
     // left edge
     // estimate line between top and center: to escepe center black line
     let center_p = [xpoints[1], (ypoints[0] + ypoints[1])/2];
@@ -107,6 +111,117 @@ fn find_rentangular_details(arr: U8Array, xpoints: Vec<i32>, ypoints: Vec<i32>) 
         left_p[0] + add_horiontal_crop,
         left_p[1] + add_vertical_crop
     ];
+    // crop area
+    let left_focus = arr.slice(s![
+        top_left_p[1]..bottom_right_p[1],
+        top_left_p[0]..bottom_right_p[0]
+    ]).to_owned();
+    let fw_idx = first_white(left_focus.clone(), true, "left");
+    let left_find_black = left_focus.slice(s![
+        0..left_focus.nrows(), fw_idx..left_focus.ncols()
+    ]).to_owned();
+    let left_find_black = left_find_black.mapv(|x| x as u128); // overflow
+    let cut_off = left_find_black.mean().unwrap();
+    let binary_arr = to_binary_arr(left_find_black, cut_off);
+    let lw_idx = first_white(binary_arr, true, "left") + fw_idx;
+    let left_bte_idx = ((fw_idx + lw_idx)/2) as i32 + top_left_p[0]; // to reset position same as large arr
+    let pixel_diff = xpoints[1] - left_bte_idx;
+    let length_x1 = pixel2cm(&ypoints, pixel_diff, false);
+    let length_diff = pixel2cm(&ypoints, (pixel_diff - (xpoints[1] - xpoints[0])), false);
+    res.push([
+        left_bte_idx as f32, left_bte_idx as f32, ypoints[0] as f32, ypoints[2] as f32, length_x1, length_diff
+    ]);
+    
+    // right edge
+}
+
+
+/// find idx that first white then -1 for actually area
+fn first_white(arr: U8Array, by_col: bool, position: &str) -> usize {
+    let shape = arr.shape();
+    let nrows = shape[0];
+    let ncols = shape[1];
+    let white_pixel_val = *arr.max().unwrap();
+    let mut first_val_idx = vec![];
+    let black_pos = ["right", "bottom"];
+    let is_black = black_pos.contains(&position);
+    if is_black {
+        // right and bottom : start from last col and row
+        if by_col {
+            for row in 0..nrows {
+                for col in 0..ncols {
+                    let pixel_val = arr[(nrows-1-row, ncols-1-col)];
+                    if pixel_val < white_pixel_val {
+                        first_val_idx.push(ncols-col);
+                        break;
+                    }
+                }
+            }
+        } else {
+            for col in 0..ncols {
+                for row in 0..nrows {
+                    let pixel_val = arr[(nrows-1-row, ncols-1-col)];
+                    if pixel_val < white_pixel_val {
+                        first_val_idx.push(nrows-row);
+                        break;
+                    }
+                }
+            }
+        }
+    } else {
+        // left and top
+        if by_col {
+            for row in 0..nrows {
+                for col in 0..ncols {
+                    let pixel_val = arr[(row, col)];
+                    if pixel_val < white_pixel_val {
+                        first_val_idx.push(col-1);
+                        break;
+                    }
+                }
+            }
+        } else {
+            for col in 0..ncols {
+                for row in 0..nrows {
+                    let pixel_val = arr[(row, col)];
+                    if pixel_val < white_pixel_val {
+                        first_val_idx.push(row-1);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    let idx = most_common_val(first_val_idx);
+    idx
+}
+
+fn most_common_val(values: Vec<usize>) -> usize {
+    let mut counts: HashMap<usize, u16> = HashMap::new();
+    for n in &values {
+        let count = counts.entry(*n).or_insert(0);
+        *count += 1;
+    }
+    // then find maximun by value(count) but return key
+    let mut max_key = None;
+    let mut max_val = std::u16::MIN;
+    for (k, v) in counts {
+        if v > max_val {
+            max_key = Some(k);
+            max_val = v;
+        }
+    }
+    max_key.unwrap()
+}
+
+fn to_binary_arr(arr: U128Array, cut_off: u128) -> U8Array {
+    let shape = arr.shape();
+    let h = shape[0];
+    let w = shape[1];
+    let binary_arr = arr.iter()
+        .map(|&x| if x > cut_off { 1 } else { 0 })
+        .collect::<Vec<_>>();
+    Array::from_shape_vec((h, w), binary_arr).unwrap()
 }
 
 fn main() {

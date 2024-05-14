@@ -10,6 +10,7 @@ use dicom::{object::open_file, pixeldata::PixelDecoder};
 type DcmObj = dicom::object::FileDicomObject<dicom::object::InMemDicomObject>;
 pub type U16Array = ArrayBase<OwnedRepr<u16>, Dim<[usize; 2]>>;
 pub type U8Array = ArrayBase<OwnedRepr<u8>, Dim<[usize; 2]>>;
+pub type U128Array = ArrayBase<OwnedRepr<u128>, Dim<[usize; 2]>>;
 type I32Array = ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>;
 type Obj = FileDicomObject<InMemDicomObject>;
 
