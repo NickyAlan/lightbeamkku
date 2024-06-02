@@ -5,8 +5,8 @@ use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save
 use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
-use dicom::pixeldata::image::GrayImage;
-use dicom::dictionary_std::tags::{self, FOCAL_DISTANCE, SPHERE_POWER};
+use dicom::pixeldata::image::{flat, GrayImage};
+use dicom::dictionary_std::tags::{self, FOCAL_DISTANCE, NUMBER_OF_COMPENSATORS, SPHERE_POWER};
 use ndarray::{s, Array, ArrayBase, Axis, Dim, OwnedRepr};
 use dicom::object::{pixeldata, FileDicomObject, InMemDicomObject, Tag};
 use dicom::{object::open_file, pixeldata::PixelDecoder};
@@ -21,12 +21,13 @@ type Obj = FileDicomObject<InMemDicomObject>;
 fn processing(file_paths: Vec<String>, save_path: String) {
     let large_field = file_paths[0].to_owned();
     let small_field = file_paths[1].to_owned();
+    let mut arrays = vec![];
     match open_dcm_file(large_field) {
         Some(obj) => {
             // large field
             let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
             let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
-
+            
             // details
             let hospital = get_detail(&obj, tags::INSTITUTION_NAME);
             // ...
@@ -34,6 +35,7 @@ fn processing(file_paths: Vec<String>, save_path: String) {
             let (x1, y1, x2, y2) = find_center_line(new_arr.clone());
             let theta_r = find_theta(x2, y1, y2);
             let arr = rotate_array(theta_r, new_arr);
+            arrays.push(arr.clone());
             let ypoints = fint_horizontal_line(arr.clone());
             let xpoints = find_vertical_line(arr);
 
@@ -43,8 +45,10 @@ fn processing(file_paths: Vec<String>, save_path: String) {
                     let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
                     let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
                     let new_arr = arr_correction(arr);
-                    let arr = rotate_array(theta_r, new_arr);
-                    find_rentangular_details(arr, xpoints, ypoints);
+                    let arr2 = rotate_array(theta_r, new_arr);
+                    let res = find_rentangular_details(arr2.clone(), xpoints, ypoints);   
+                    let add_arr = add_arrays(arrays[0].clone(), arr2);
+                    // save_to_image_u8(add_arr, "c:/Users/alant/Desktop/added.jpg".to_string());
                 },
                 None => {
 
@@ -88,10 +92,10 @@ fn arr_correction(arr: U16Array) -> U8Array {
 /// left, right, top, bottom
 /// 
 /// x1, x2, y1, y2, length, err
-fn find_rentangular_details(arr: U8Array, xpoints: Vec<i32>, ypoints: Vec<i32>) {
+fn find_rentangular_details(arr: U8Array, xpoints: Vec<i32>, ypoints: Vec<i32>) -> Vec<[f32; 6]> {
     let shape = arr.shape();
     let h = shape[0];
-    let w = shape[1];
+    // res: [x1, x2, y1, y2, length, err]
     let mut res = vec![];
     // left edge
     // estimate line between top and center: to escepe center black line
@@ -127,14 +131,121 @@ fn find_rentangular_details(arr: U8Array, xpoints: Vec<i32>, ypoints: Vec<i32>) 
     let left_bte_idx = ((fw_idx + lw_idx)/2) as i32 + top_left_p[0]; // to reset position same as large arr
     let pixel_diff = xpoints[1] - left_bte_idx;
     let length_x1 = pixel2cm(&ypoints, pixel_diff, false);
-    let length_diff = pixel2cm(&ypoints, (pixel_diff - (xpoints[1] - xpoints[0])), false);
+    let length_diff = length_x1 - 9.0;
     res.push([
         left_bte_idx as f32, left_bte_idx as f32, ypoints[0] as f32, ypoints[2] as f32, length_x1, length_diff
     ]);
     
     // right edge
+    let right_p = [xpoints[2], (ypoints[0] + ypoints[1])/2];
+    let top_left_p = [
+        right_p[0] - add_horiontal_crop,
+        right_p[1] - add_vertical_crop
+    ];
+    let bottom_right_p = [
+        right_p[0] + add_horiontal_crop,
+        right_p[1] + add_vertical_crop
+    ];
+    // crop area
+    let right_focus = arr.slice(s![
+        top_left_p[1]..bottom_right_p[1],
+        top_left_p[0]..bottom_right_p[0]
+    ]).to_owned();
+    let fw_idx = first_white(right_focus.clone(), true, "right");
+    let right_find_black = right_focus.slice(s![
+        0..right_focus.nrows(), 0..fw_idx
+    ]).to_owned();
+    let right_find_black = right_find_black.mapv(|x| x as u128); // overflow
+    let cut_off = right_find_black.mean().unwrap();
+    let binary_arr = to_binary_arr(right_find_black, cut_off);
+    let lw_idx = first_white(binary_arr, true, "right");
+    let right_bte_idx = ((fw_idx + lw_idx)/2) as i32 + top_left_p[0]; // to reset position same as large arr
+    let pixel_diff = right_bte_idx - xpoints[1];
+    let length_x2 = pixel2cm(&ypoints, pixel_diff, false);
+    let length_diff = length_x2 - 9.0;
+    res.push([
+        right_bte_idx as f32, right_bte_idx as f32, ypoints[0] as f32, ypoints[2] as f32, length_x2, length_diff
+    ]);
+
+    // top edge
+    let top_p = [(xpoints[1] + xpoints[2])/2, ypoints[0]];
+    let top_left_p = [
+        top_p[0] - add_vertical_crop,
+        (top_p[1] - add_horiontal_crop).max(0)
+    ];
+    let bottom_right_p = [
+        top_p[0] + add_vertical_crop,
+        top_p[1] + add_horiontal_crop
+    ];
+    // crop area
+    let top_focus = arr.slice(s![
+        top_left_p[1]..bottom_right_p[1],
+        top_left_p[0]..bottom_right_p[0]
+    ]).to_owned();
+    let fw_idx = first_white(top_focus.clone(), false, "top");
+    let top_find_black = top_focus.slice(s![
+        fw_idx..top_focus.nrows(), 0..top_focus.ncols()
+    ]).to_owned();
+    let top_find_black: ArrayBase<OwnedRepr<u128>, Dim<[usize; 2]>> = top_find_black.mapv(|x| x as u128); // overflow
+    let cut_off = top_find_black.mean().unwrap();
+    let binary_arr = to_binary_arr(top_find_black, cut_off);
+    let lw_idx = first_white(binary_arr, false, "top") + fw_idx;
+    let top_bte_idx = ((fw_idx + lw_idx)/2) as i32 + top_left_p[1]; // to reset position same as large arr
+    let pixel_diff = ypoints[1] - top_bte_idx;
+    let length_y1 = pixel2cm(&ypoints, pixel_diff, false);
+    let length_diff = length_y1 - 7.0;
+    res.push([
+        xpoints[0] as f32, xpoints[2] as f32, top_bte_idx as f32, top_bte_idx as f32, length_y1, length_diff
+    ]);
+    
+    // bottom edge
+    let bottom_p = [(xpoints[1] + xpoints[2])/2, ypoints[2]];
+    let top_left_p = [
+        bottom_p[0] - add_vertical_crop,
+        bottom_p[1] - add_horiontal_crop
+    ];
+    let bottom_right_p = [
+        bottom_p[0] + add_vertical_crop,
+        bottom_p[1] + add_horiontal_crop
+    ];
+    // crop area
+    let bottom_focus = arr.slice(s![
+        top_left_p[1]..bottom_right_p[1],
+        top_left_p[0]..bottom_right_p[0],
+    ]).to_owned();
+    let fw_idx = first_white(bottom_focus.clone(), false, "bottom");
+    let bottom_find_black = bottom_focus.slice(s![
+        0..fw_idx, 0..bottom_focus.ncols()
+    ]).to_owned();      
+    let bottom_find_black: ArrayBase<OwnedRepr<u128>, Dim<[usize; 2]>> = bottom_find_black.mapv(|x| x as u128); // overflow
+    let cut_off = bottom_find_black.mean().unwrap();
+    let binary_arr = to_binary_arr(bottom_find_black, cut_off);
+    let lw_idx = first_white(binary_arr, false, "bottom");
+    let bottom_bte_idx = ((fw_idx + lw_idx)/2) as i32 + top_left_p[1]; // to reset position same as large arr
+    let pixel_diff = bottom_bte_idx - ypoints[1];
+    let length_y2 = pixel2cm(&ypoints, pixel_diff, false);
+    let length_diff = length_y2 - 7.0;
+    res.push([
+        xpoints[0] as f32, xpoints[2] as f32, bottom_bte_idx as f32, bottom_bte_idx as f32, length_y2, length_diff
+    ]);
+    res
 }
 
+/// add 2 array
+fn add_arrays(arr1: U8Array, arr2: U8Array) -> U8Array {
+    let nrows = arr1.nrows();
+    let ncols = arr1.ncols();
+    let max_v = 510.0; // 255*2
+    let mut add_arr = vec![];
+    for r in 0..nrows {
+        for c in 0..ncols {
+            let add_v = arr1[(r, c)] as u16 + arr2[(r, c)] as u16;
+            let v_u8 = ((add_v as f32/max_v) * 255.0) as u8;
+            add_arr.push(v_u8);
+        }
+    }
+    Array::from_shape_vec((nrows, ncols), add_arr).unwrap()
+}
 
 /// find idx that first white then -1 for actually area
 fn first_white(arr: U8Array, by_col: bool, position: &str) -> usize {
