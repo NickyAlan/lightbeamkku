@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
-use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line};
+use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8,find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line};
 use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
@@ -16,6 +16,19 @@ type DcmObj = dicom::object::FileDicomObject<dicom::object::InMemDicomObject>;
 type I32Array = ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>;
 type Obj = FileDicomObject<InMemDicomObject>;
 
+#[tauri::command]
+fn preview(file_path: String, save_path: String) {
+    match open_dcm_file(file_path) {
+        Some(obj) => {      
+            let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
+            let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
+            save_to_image(arr, save_path);
+        },
+        None => {
+
+        }
+    } 
+}
 
 #[tauri::command]
 fn processing(file_paths: Vec<String>, save_path: String) {
@@ -38,6 +51,7 @@ fn processing(file_paths: Vec<String>, save_path: String) {
             arrays.push(arr.clone());
             let ypoints = fint_horizontal_line(arr.clone());
             let xpoints = find_vertical_line(arr);
+            dbg!(&xpoints);
 
             // small field
             match open_dcm_file(small_field) {
@@ -337,7 +351,7 @@ fn to_binary_arr(arr: U128Array, cut_off: u128) -> U8Array {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![processing])
+        .invoke_handler(tauri::generate_handler![processing, preview])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
