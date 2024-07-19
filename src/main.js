@@ -11,6 +11,9 @@ const smallImage = document.getElementById("smallImage");
 const smallText = document.getElementById("smallText");
 const processBtn = document.getElementById("processBtn");
 let filePathsImage = [];
+let imageSelectCount = 0;
+let largeCheck = false;
+let smallCheck = false;
 
 async function process() {
   console.log("processing...");
@@ -21,12 +24,10 @@ async function process() {
 }
 
 async function savePreviewImage(filePath, savePath) {
-  console.log(filePath);
   const res = await invoke("preview", {
     filePath: filePath,
     savePath: savePath,
   });
-  console.log("DONE");
 }
 
 function openFilefn() {
@@ -59,23 +60,50 @@ async function readFile(size) {
     const split_ = lowerCasePath.split("\\");
     const file_type = split_[split_.length - 1].split(".")[1];
     if (!file_type || file_type == "dcm" || file_type == "dicom") {
+      const tempDir = await tempdir();
       filePathsImage.push(filePath);
-      console.log(file_type, filePathsImage);
-    }
-    if (size == "large") {
-      const tempDir = await tempdir();
-      let savePath = `${tempDir}${size}LB.jpg`;
-      console.log(savePath);
-      await savePreviewImage(filePath, savePath);
-      largeImage.src = convertFileSrc(savePath);
-      largeText.innerText = "selected";
+      let savePath = `${tempDir}${size}${imageSelectCount}LB.jpg`;
+      if (size == "large") {
+        largeImage.src = "assets/t4.jpg";
+        largeText.innerText = "loading";
+        console.log(savePath);
+        await savePreviewImage(filePath, savePath);
+        largeImage.src = convertFileSrc(savePath);
+        largeText.innerText = "selected";
+        largeCheck = true;
+      } else {
+        smallImage.src = "assets/t4.jpg";
+        smallText.innerText = "loading";
+        await savePreviewImage(filePath, savePath);
+        smallImage.src = convertFileSrc(savePath);
+        smallText.innerText = "selected";
+        smallCheck = true;
+      }
+      imageSelectCount += 1;
+      console.log(imageSelectCount);
     } else {
-      const tempDir = await tempdir();
-      let savePath = `${tempDir}${size}LB.jpg`;
-      await savePreviewImage(filePath, savePath);
-      smallImage.src = convertFileSrc(savePath);
-      smallText.innerText = "selected";
+      if (size == "large") {
+        largeText.innerText = "wrong";
+        largeImage.src = "assets/t4.jpg";
+        largeCheck = false;
+      } else {
+        smallText.innerText = "wrong";
+        smallImage.src = "assets/t4.jpg";
+        smallCheck = false;
+      }
     }
+  }
+  // update process button
+  console.log(processBtn.style.cursor);
+  if (largeCheck && smallCheck) {
+    console.log(largeCheck, smallCheck);
+    processBtn.style.background = "black";
+    processBtn.style.cursor = "pointer";
+    processBtn.addEventListener("click", process);
+  } else {
+    processBtn.style.background = "beige";
+    processBtn.style.cursor = "default";
+    processBtn.removeEventListener("click", process);
   }
 }
 
@@ -87,10 +115,6 @@ largeField.addEventListener("click", (event) => {
 smallField.addEventListener("click", (event) => {
   event.preventDefault();
   readFile("small");
-});
-
-processBtn.addEventListener("click", (event) => {
-  console.log("SEND..");
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
