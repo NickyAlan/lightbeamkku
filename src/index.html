@@ -9,12 +9,14 @@
   </head>
 
   <body>
+    <!-- NAVBAR -->
     <nav>
       <ul>
-        <li>LOGO</li>
-        <li>How to use</li>
+        <li><a href="">LOGO</a></li>
+        <li><a href="">How-to-use</a></li>
       </ul>
     </nav>
+    <!-- LOAD IMAGE -->
     <div class="file-input-container">
       <div>
         <span
@@ -34,7 +36,109 @@
           <img src="assets/t3.jpg" alt="" id="smallImage" />
         </div>
       </div>
-      <button id="processBtn">process</button>
+      <button id="processBtn">Process</button>
+    </div>
+    <!-- Loading -->
+    <div class="loading">
+      <span class="loader"></span>
+    </div>
+    <!-- Result -->
+    <div class="result">
+      <span
+        ><button id="backBtn">Back</button>
+        <button id="exportBtn">Export</button></span
+      >
+      <div class="result-display">
+        <div class="imageDiv">
+          <img src="assets/ex.png" />
+        </div>
+        <div class="tableDiv">
+          <h1>Result Report</h1>
+          <table>
+            <tr>
+              <th>Position</th>
+              <th>Length (cm)</th>
+              <th>Error (cm)</th>
+              <th>Error (%)</th>
+              <th>Status</th>
+            </tr>
+            <tr>
+              <td>X<sub>1</sub></td>
+              <td>8.98</td>
+              <td>0.02</td>
+              <td>0.22</td>
+              <td>passed</td>
+            </tr>
+            <tr>
+              <td>X<sub>2</sub></td>
+              <td>9.00</td>
+              <td>0.00</td>
+              <td>0.00</td>
+              <td>passed</td>
+            </tr>
+            <tr>
+              <td>Y<sub>1</sub></td>
+              <td>6.89</td>
+              <td>0.11</td>
+              <td>1.57</td>
+              <td>passed</td>
+            </tr>
+            <tr>
+              <td>Y<sub>2</sub></td>
+              <td>7.00</td>
+              <td>0.00</td>
+              <td>0.00</td>
+              <td>passed</td>
+            </tr>
+          </table>
+          <br />
+
+          <div class="lower-res">
+            <div class="left-res">
+              <table>
+                <tr>
+                  <th>1.5°</th>
+                  <th>3.0°</th>
+                  <th>Status</th>
+                </tr>
+                <tr>
+                  <td>passed</td>
+                  <td>passed</td>
+                  <td>passed</td>
+                </tr>
+              </table>
+              <br />
+              <div class="circleImage">
+                <img src="assets/ex1.png" alt="" />
+              </div>
+            </div>
+
+            <div class="right-res">
+              <table>
+                <tr>
+                  <th>Beam Aliagnment</th>
+                  <th>passed</th>
+                </tr>
+                <tr>
+                  <td>Collimator Alignment</td>
+                  <td>passed</td>
+                </tr>
+              </table>
+              <br>
+              <div class="detectorDetails">
+                <h2>Information</h2>
+                <p>Detector type: test</p>
+                <p>Detector id: 102424</p>
+                <p>Bit depth: 16</p>
+                <p>Matrix size: 2000x2000</p>
+                <span><p>Name: </p><input type="text"></span>
+                <span><p>Hospital: </p><input type="text"></span>
+                <span><p>Room: </p><input type="text"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>

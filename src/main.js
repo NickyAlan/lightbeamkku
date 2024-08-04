@@ -3,6 +3,8 @@ const { tempdir } = window.__TAURI__.os;
 const { convertFileSrc } = window.__TAURI__.tauri;
 const { open, message } = window.__TAURI__.dialog;
 
+// load image
+const inputDiv = document.querySelector(".file-input-container");
 const largeField = document.getElementById("largeField");
 const largeImage = document.getElementById("largeImage");
 const largeText = document.getElementById("largeText");
@@ -10,6 +12,14 @@ const smallField = document.getElementById("smallField");
 const smallImage = document.getElementById("smallImage");
 const smallText = document.getElementById("smallText");
 const processBtn = document.getElementById("processBtn");
+
+// loading process
+const loadingDiv = document.querySelector(".loading");
+
+// show result
+const resultDiv = document.querySelector(".result");
+const backBtn = document.getElementById("backBtn");
+
 let filePathsImage = [];
 let imageSelectCount = 0;
 let largeCheck = false;
@@ -17,6 +27,14 @@ let smallCheck = false;
 
 async function process() {
   console.log("processing...");
+  inputDiv.style.display = "none";
+  loadingDiv.style.display = "flex";
+
+  setTimeout(() => {
+    loadingDiv.style.display = "none";
+    resultDiv.style.display = "grid";
+  }, 3000);
+
   // const res = await invoke("processing", {
   //   filePaths: ["c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir-L", "c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir"],
   //   savePath: "c:/Users/alant/Desktop/t0re.jpg",
@@ -63,6 +81,7 @@ async function readFile(size) {
       const tempDir = await tempdir();
       filePathsImage.push(filePath);
       let savePath = `${tempDir}${size}${imageSelectCount}LB.jpg`;
+
       if (size == "large") {
         largeImage.src = "assets/t4.jpg";
         largeText.innerText = "loading";
@@ -117,6 +136,12 @@ smallField.addEventListener("click", (event) => {
   readFile("small");
 });
 
-window.addEventListener("DOMContentLoaded", async () => {
-  await process();
+backBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  resultDiv.style.display = "none";
+  inputDiv.style.display = "grid";
 });
+
+// window.addEventListener("DOMContentLoaded", async () => {
+//   await process();
+// });
