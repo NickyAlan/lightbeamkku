@@ -2,6 +2,8 @@ const { invoke } = window.__TAURI__.tauri;
 const { tempdir } = window.__TAURI__.os;
 const { convertFileSrc } = window.__TAURI__.tauri;
 const { open, message } = window.__TAURI__.dialog;
+const { appDataDir } = window.__TAURI__.path;
+const { createDir, exists } = window.__TAURI__.fs;
 
 // load image
 const inputDiv = document.querySelector(".file-input-container");
@@ -19,6 +21,10 @@ const loadingDiv = document.querySelector(".loading");
 // show result
 const resultDiv = document.querySelector(".result");
 const backBtn = document.getElementById("backBtn");
+
+// Database
+const openDb = document.getElementById("openDb");
+const saveDb = document.getElementById("saveDb");
 
 let filePathsImage = [];
 let imageSelectCount = 0;
@@ -77,6 +83,7 @@ async function readFile(size) {
     const lowerCasePath = filePath.toLowerCase();
     const split_ = lowerCasePath.split("\\");
     const file_type = split_[split_.length - 1].split(".")[1];
+
     if (!file_type || file_type == "dcm" || file_type == "dicom") {
       const tempDir = await tempdir();
       filePathsImage.push(filePath);
@@ -126,6 +133,54 @@ async function readFile(size) {
   }
 }
 
+async function openFolder() {
+  const dataDir = await appDataDir();
+  const dirExists = await exists(dataDir);
+  if (!dirExists) {
+    await createDir(dataDir, { recursive: true });
+  }
+  return new Promise((resolve, reject) => {
+    open({
+      multiple: false,
+      title: "Open Database",
+      directory: true,
+      defaultPath: dataDir,
+    })
+      .then((filePaths) => {
+        if (filePaths) {
+          resolve(filePaths);
+        } else {
+          reject("No file selected");
+        }
+      })
+      .catch(reject);
+  });
+}
+
+async function loadDb() {
+  const folderPath = await openFolder();
+  console.log(folderPath);
+}
+
+async function saveToFolder() {
+  // create top folder
+  const dataDir = await appDataDir();
+  const dirExists = await exists(dataDir);
+  if (!dirExists) {
+    await createDir(dataDir, { recursive: true });
+  }
+  // save file
+  let folderName = "2";
+  let folderPath = `${dataDir}\\${folderName}`;
+  const folderExists = await exists(folderPath);
+  if (!folderExists) {
+    await createDir(folderPath, { recursive: true });
+  }
+
+  console.log("App Data Directory:", dataDir);
+  // await message('Save Complete', 'Sucessfully Saved');
+}
+
 largeField.addEventListener("click", (event) => {
   event.preventDefault();
   readFile("large");
@@ -140,6 +195,16 @@ backBtn.addEventListener("click", (event) => {
   event.preventDefault();
   resultDiv.style.display = "none";
   inputDiv.style.display = "grid";
+});
+
+openDb.addEventListener("click", event => {
+  event.preventDefault();
+  loadDb();
+})
+
+saveDb.addEventListener("click", (event) => {
+  event.preventDefault();
+  saveToFolder();
 });
 
 // window.addEventListener("DOMContentLoaded", async () => {
