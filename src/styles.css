@@ -4,7 +4,7 @@
   padding: 0;
   margin: 0;
   box-sizing: border-box;
-  font-family: consolas;
+  font-family: sans-serif;
 }
 
 :root {
@@ -13,41 +13,68 @@
 
 body {
   background: var(--c1);
+  margin: 30px 60px;
+  overflow-y: hidden;
+}
+
+nav {
+  border-bottom: 2px solid black;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
 }
 
 nav > ul {
-  background: black;
-  color: white;
   display: flex;
-  gap: 20px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
   width: 100%;
-  font-size: 20px;
-  padding: 10px 20px;
+}
+
+#appName {
+  margin-right: auto;
+}
+
+#appName a {
+  font-size: 35px;
+  font-weight: bolder;
+  text-decoration: none;
+  font-family: consolas;
+  color: black;
 }
 
 li {
   list-style: none;
 }
 
-li a {
+li a:not(#appName a) {
   text-decoration: none;
+  color: black;
+  font-size: 20px;
+  border: 2px solid black;
+  padding: 5px 10px;
+  border-radius: 3px;
+  transition: 0.1s all linear;
+}
+
+li a:not(#appName a):hover {
   color: white;
+  background: black;
 }
 
 .file-input-container {
   display: grid;
   /* display: none; */
   grid-template-columns: 1fr 1fr;
-  padding: 20px 40px;
   gap: 20px;
 }
 
 .file-input-container a {
   background: #000;
   color: white;
-  padding: 10px 20px;
+  padding: 7px 15px;
+  font-size: 18px;
   cursor: pointer;
-  width: fit-content;
   text-decoration: none;
 }
 
@@ -83,35 +110,44 @@ li a {
 #backBtn,
 #exportBtn,
 #saveDb {
-  background: beige;
-  padding: 10px 20px;
+  background: bisque;
+  color: white;
   width: fit-content;
+  text-decoration: none;
+  font-size: 20px;
   border: none;
-  font-size: 16px;
-  color: rgb(255, 255, 255);
+  padding: 5px 20px;
+  border-radius: 3px;
 }
 
-#saveDb {
-  background-color: blue;
+#saveDb,
+#backBtn,
+#exportBtn {
+  background: white;
+  color: black;
   cursor: pointer;
+  padding: 5px 15px;
+  border: 2px solid black;
+  transition: 0.1s all linear;
 }
 
 #backBtn {
   background: black;
-  cursor: pointer;
-  height: fit-content;
+  color: white;
 }
 
-#exportBtn {
-  background: rgb(233, 233, 17);
-  color: black;
-  cursor: pointer;
+#saveDb:hover,
+#exportBtn:hover {
+  color: white;
+  background: orange;
+  border: 2px solid orange;
 }
 
 .loading {
-  width: 95vw;
+  width: 97%;
   height: 90vh;
   display: flex;
+  /* background: red; */
   justify-content: center;
   align-items: center;
   display: none;
@@ -124,7 +160,7 @@ li a {
   border-radius: 4px;
   background: currentColor;
   display: block;
-  margin: -50px auto 0;
+  margin: -100px auto 0;
   position: relative;
   color: #fff;
   transform: translateY(30px);
@@ -169,27 +205,35 @@ li a {
 .result {
   width: 100%;
   /* background: #611ccf; */
-  padding: 20px;
   display: flex;
   gap: 10px;
   flex-direction: column;
-  /* display: none; */
+  display: none;
 }
 
 .result-display {
   display: grid;
-  gap: 20px;
   grid-template-columns: 1fr 1fr;
   max-height: 640px;
 }
 
 .tableDiv {
-  padding-left: 30px;
+  padding-left: 20px;
   max-height: 640px;
 }
 
+.tableDiv h1 {
+  font-size: 30px;
+}
+
+#colRes,
+#beamRes {
+  font-family: consolas;
+  font-size: 17px;
+  margin-bottom: 2px;
+}
+
 .imageDiv {
-  padding-left: 20px;
   max-height: 640px;
 }
 
@@ -201,6 +245,7 @@ li a {
 .circleImage {
   height: 284px;
   width: 100%;
+  margin-top: 15px;
 }
 
 .circleImage img {
@@ -208,55 +253,40 @@ li a {
 }
 
 table {
-  font-family: arial, sans-serif;
   border-collapse: collapse;
 }
 
 td,
 th {
-  /* border: 1px solid ; */
+  font-size: 17px;
   text-align: center;
-  padding: 10px 20px;
+  padding: 5px 15px;
+  border: 1px solid black;
 }
 
 th {
   background: blue;
   color: white;
+  font-family: consolas;
 }
 
 tr:nth-child(odd) {
-  background-color: #dddddd;
+  background-color: #f0eded;
 }
 
 .lower-res {
   display: flex;
   gap: 20px;
-}
-
-.right-res td:first-child {
-  background-color: blue; 
-  color: white; /* Text color */
-}
-
-.right-res th:nth-child(2) {
-  background-color: white; 
-  color: black; /* Text color */
-  font-weight: 100;
-}
-
-.right-res th {
-  background: blue;
-  color: white;
+  margin-top: 10px;
 }
 
 .detectorDetails span {
   width: 100%;
   display: flex;
-  font-size: 16px;
 }
 
 .detectorDetails p {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .detectorDetails input {
@@ -266,3 +296,87 @@ tr:nth-child(odd) {
   padding: 0 1ch;
   width: 100%;
 }
+
+/* Database */
+/* Pop-up Styles */
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  padding: 20px;
+  background-color: #eeeeee;
+  box-shadow: 0 10px 20px black;
+  border-radius: 4px; /* Apply border radius */
+  overflow: hidden; /* Ensure radius is not clipped */
+  z-index: 1000;
+  display: none;
+}
+
+
+.popup-content {
+  margin-top: 20px;
+  max-height: 300px; /* Control height of scrollable content */
+  overflow-y: auto; /* Enable vertical scroll */
+  padding: 10px; /* Add padding for spacing inside popup */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup-content span {
+  padding: 20px;
+  background: white;
+  cursor: pointer;
+  border-radius: 5px 0 0 5px;
+  border: 2px solid white;
+}
+
+.popup-content span:hover {
+  border: 2px solid blue;
+}
+
+.popup-content a {
+  font-size: 20px;
+  color: black;
+  text-decoration: none;
+}
+
+/* Overlay Background */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  display: none; /* Hidden by default */
+  z-index: 999; /* Under the popup */
+}
+
+/* Close Button */
+.close-btn {
+  background-color: black;
+  color: white;
+  padding: 5px 10px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  float: right;
+}
+
+.popup-content::-webkit-scrollbar {
+    width: 10px; /* Width of the scrollbar */
+    border-radius: 0px;
+    background: white;
+}
+
+.popup-content::-webkit-scrollbar-thumb {
+    background: blue; /* Color of the scrollbar thumb */
+}
+
+

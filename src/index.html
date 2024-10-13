@@ -12,9 +12,9 @@
     <!-- NAVBAR -->
     <nav>
       <ul>
-        <li><a href="">LOGO</a></li>
-        <li><a href="" id="openDb">Database</a></li>
-        <li><a href="">Help</a></li>
+        <li id="appName"><a href="">LightBeam</a></li>
+        <li><a href="#" id="openDb">Database</a></li>
+        <li><a href="#">Help</a></li>
       </ul>
     </nav>
     <!-- LOAD IMAGE -->
@@ -25,7 +25,7 @@
           <h3 id="largeText">large field image</h3></span
         >
         <div class="container">
-          <img src="assets/t3.jpg" alt="" id="largeImage" />
+          <img src="assets/a3.jpg" alt="" id="largeImage" />
         </div>
       </div>
       <div>
@@ -34,7 +34,7 @@
           <h3 id="smallText">small field image</h3></span
         >
         <div class="container">
-          <img src="assets/t3.jpg" alt="" id="smallImage" />
+          <img src="assets/a3.jpg" alt="" id="smallImage" />
         </div>
       </div>
       <button id="processBtn">Process</button>
@@ -47,8 +47,8 @@
     <div class="result">
       <span
         ><button id="backBtn">Back</button>
-        <button id="saveDb">Save</button>
-        <button id="exportBtn">Export</button></span
+        <button id="saveDb">Save as Image</button>
+        <button id="exportBtn">Export to CSV</button></span
       >
       <div class="result-display">
         <div class="imageDiv">
@@ -56,6 +56,7 @@
         </div>
         <div class="tableDiv">
           <h1>Result Report</h1>
+          <p id="colRes">Collimator Alignment (Passed)</p>
           <table>
             <tr>
               <th>Position</th>
@@ -93,10 +94,10 @@
               <td>passed</td>
             </tr>
           </table>
-          <br />
 
           <div class="lower-res">
             <div class="left-res">
+              <p id="beamRes">Beam Aliagnment (Passed)</p>
               <table>
                 <tr>
                   <th>1.5°</th>
@@ -109,37 +110,46 @@
                   <td>passed</td>
                 </tr>
               </table>
-              <br />
               <div class="circleImage">
                 <img src="assets/ex1.png" alt="" />
               </div>
             </div>
 
             <div class="right-res">
-              <table>
-                <tr>
-                  <th>Beam Aliagnment</th>
-                  <th>passed</th>
-                </tr>
-                <tr>
-                  <td>Collimator Alignment</td>
-                  <td>passed</td>
-                </tr>
-              </table>
-              <br>
               <div class="detectorDetails">
                 <h2>Information</h2>
                 <p>Detector type: test</p>
                 <p>Detector id: 102424</p>
                 <p>Bit depth: 16</p>
                 <p>Matrix size: 2000x2000</p>
-                <span><p>Name: </p><input type="text"></span>
-                <span><p>Hospital: </p><input type="text"></span>
-                <span><p>Room: </p><input type="text"></span>
+                <span
+                  ><p>Name:</p>
+                  <input type="text"
+                /></span>
+                <span
+                  ><p>Hospital:</p>
+                  <input type="text"
+                /></span>
+                <span
+                  ><p>Room:</p>
+                  <input type="text"
+                /></span>
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Database -->
+    <div class="overlay" id="overlay"></div>
+    <!-- Pop-up Div with 10-row table -->
+    <div class="popup" id="popup">
+      <button class="close-btn" id="closeBtn">Close</button>
+      <h2>Database</h2>
+
+      <!-- Scrollable content wrapped in another div -->
+      <div class="popup-content">
       </div>
     </div>
   </body>

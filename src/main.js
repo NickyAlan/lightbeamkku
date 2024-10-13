@@ -90,7 +90,7 @@ async function readFile(size) {
       let savePath = `${tempDir}${size}${imageSelectCount}LB.jpg`;
 
       if (size == "large") {
-        largeImage.src = "assets/t4.jpg";
+        largeImage.src = "assets/a4.jpg";
         largeText.innerText = "loading";
         console.log(savePath);
         await savePreviewImage(filePath, savePath);
@@ -98,7 +98,7 @@ async function readFile(size) {
         largeText.innerText = "selected";
         largeCheck = true;
       } else {
-        smallImage.src = "assets/t4.jpg";
+        smallImage.src = "assets/a4.jpg";
         smallText.innerText = "loading";
         await savePreviewImage(filePath, savePath);
         smallImage.src = convertFileSrc(savePath);
@@ -123,11 +123,13 @@ async function readFile(size) {
   console.log(processBtn.style.cursor);
   if (largeCheck && smallCheck) {
     console.log(largeCheck, smallCheck);
-    processBtn.style.background = "black";
+    processBtn.style.background = "blue";
+    processBtn.style.color = "white";
     processBtn.style.cursor = "pointer";
     processBtn.addEventListener("click", process);
   } else {
-    processBtn.style.background = "beige";
+    processBtn.style.background = "bisque";
+    processBtn.style.color = "white";
     processBtn.style.cursor = "default";
     processBtn.removeEventListener("click", process);
   }
@@ -170,7 +172,7 @@ async function saveToFolder() {
     await createDir(dataDir, { recursive: true });
   }
   // save file
-  let folderName = "2";
+  let folderName = "3";
   let folderPath = `${dataDir}\\${folderName}`;
   const folderExists = await exists(folderPath);
   if (!folderExists) {
@@ -197,15 +199,59 @@ backBtn.addEventListener("click", (event) => {
   inputDiv.style.display = "grid";
 });
 
-openDb.addEventListener("click", event => {
-  event.preventDefault();
-  loadDb();
-})
+// Database Pop-Up
+// openDb.addEventListener("click", (event) => {
+//   event.preventDefault();
+//   loadDb();
+// });
 
 saveDb.addEventListener("click", (event) => {
   event.preventDefault();
   saveToFolder();
 });
+
+const popup = document.getElementById("popup");
+const overlay = document.getElementById("overlay");
+const closeBtn = document.getElementById("closeBtn");
+
+// Open popup
+openDb.addEventListener("click", () => {
+  let spanList = [40, 402, 35035, 305, 10313, 100, 50, 100, 350, 305, 130];
+  const popupContent = document.querySelector(".popup-content"); // Select the popup content div
+
+  // Clear previous content
+  popupContent.innerHTML = "";
+  spanList.forEach((item) => {
+    const span = document.createElement("span"); // Create a new span element
+    const link = document.createElement("a"); // Create a new anchor element
+    link.href = "#"; // Set the href attribute (can be modified as needed)
+    link.textContent = item; // Set the link text
+    span.appendChild(link); // Append the link to the span
+    popupContent.appendChild(span); // Append the span to the popup content
+
+    // Add click event listener to the link
+    span.addEventListener("click", (event) => {
+      event.preventDefault(); // Prevent default anchor behavior
+      console.log(item); // Log the current item to the console
+    });
+  });
+
+  popup.style.display = "block";
+  overlay.style.display = "block";
+});
+
+// Close popup
+closeBtn.addEventListener("click", () => {
+  popup.style.display = "none";
+  overlay.style.display = "none";
+});
+
+// Close when clicking outside the popup
+overlay.addEventListener("click", () => {
+  popup.style.display = "none";
+  overlay.style.display = "none";
+});
+
 
 // window.addEventListener("DOMContentLoaded", async () => {
 //   await process();
