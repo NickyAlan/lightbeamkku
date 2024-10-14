@@ -64,7 +64,7 @@ li a:not(#appName a):hover {
 
 .file-input-container {
   display: grid;
-  /* display: none; */
+  display: none;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
@@ -208,7 +208,7 @@ li a:not(#appName a):hover {
   display: flex;
   gap: 10px;
   flex-direction: column;
-  display: none;
+  /* display: none; */
 }
 
 .result-display {

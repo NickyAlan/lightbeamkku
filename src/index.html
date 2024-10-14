@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LightBeam</title>
     <script type="module" src="/main.js" defer></script>
+    <script src="/html2canvas.min.js"></script>
   </head>
 
   <body>
@@ -50,7 +51,7 @@
         <button id="saveDb">Save as Image</button>
         <button id="exportBtn">Export to CSV</button></span
       >
-      <div class="result-display">
+      <div class="result-display" id="resultDisplay">
         <div class="imageDiv">
           <img src="assets/ex.png" />
         </div>

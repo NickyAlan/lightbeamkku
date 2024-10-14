@@ -205,10 +205,10 @@ backBtn.addEventListener("click", (event) => {
 //   loadDb();
 // });
 
-saveDb.addEventListener("click", (event) => {
-  event.preventDefault();
-  saveToFolder();
-});
+// saveDb.addEventListener("click", (event) => {
+//   event.preventDefault();
+//   saveToFolder();
+// });
 
 const popup = document.getElementById("popup");
 const overlay = document.getElementById("overlay");
@@ -256,3 +256,21 @@ overlay.addEventListener("click", () => {
 // window.addEventListener("DOMContentLoaded", async () => {
 //   await process();
 // });
+
+// Save as Image
+saveDb.addEventListener("click", function() {
+  const element = document.getElementById("resultDisplay"); // The element to capture
+
+  html2canvas(element).then(function(canvas) {
+    // Convert the canvas to an image (base64 format)
+    const imgData = canvas.toDataURL("image/png");
+
+    // Create a link to download the image
+    const downloadLink = document.createElement("a");
+    downloadLink.href = imgData;
+    downloadLink.download = "screenshot.png"; // File name for download
+
+    // Trigger the download
+    downloadLink.click();
+  });
+});
