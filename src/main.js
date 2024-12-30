@@ -33,18 +33,18 @@ let smallCheck = false;
 
 async function process() {
   console.log("processing...");
-  inputDiv.style.display = "none";
-  loadingDiv.style.display = "flex";
+  // inputDiv.style.display = "none";
+  // loadingDiv.style.display = "flex";
 
-  setTimeout(() => {
-    loadingDiv.style.display = "none";
-    resultDiv.style.display = "grid";
-  }, 3000);
+  // setTimeout(() => {
+  //   loadingDiv.style.display = "none";
+  //   resultDiv.style.display = "grid";
+  // }, 3000);
 
-  // const res = await invoke("processing", {
-  //   filePaths: ["c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir-L", "c:/Users/alant/Desktop/DR-Light-beam-test/images/DICOMOBJ/9x7-cir"],
-  //   savePath: "c:/Users/alant/Desktop/t0re.jpg",
-  // });
+  const res = await invoke("processing", {
+    filePaths: ["c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/images/DICOMOBJ/test-L2", "c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/images/DICOMOBJ/test-S2"],
+    savePath: "c:/Users/alant/Desktop/test-save-file.jpg",
+  });
 }
 
 async function savePreviewImage(filePath, savePath) {
@@ -252,10 +252,10 @@ overlay.addEventListener("click", () => {
   overlay.style.display = "none";
 });
 
-
-// window.addEventListener("DOMContentLoaded", async () => {
-//   await process();
-// });
+// DEBUG
+window.addEventListener("DOMContentLoaded", async () => {
+  await process();
+});
 
 // Save as Image
 saveDb.addEventListener("click", function() {

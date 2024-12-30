@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
-use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8,find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line};
+use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8,find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line, boxs_posision, find_edges_pos, get_result};
 use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
@@ -10,6 +10,7 @@ use dicom::dictionary_std::tags::{self, FOCAL_DISTANCE, NUMBER_OF_COMPENSATORS, 
 use ndarray::{s, Array, ArrayBase, Axis, Dim, OwnedRepr};
 use dicom::object::{pixeldata, FileDicomObject, InMemDicomObject, Tag};
 use dicom::{object::open_file, pixeldata::PixelDecoder};
+use utils::get_crop_area;
 
 // TYPE
 type DcmObj = dicom::object::FileDicomObject<dicom::object::InMemDicomObject>;
@@ -32,36 +33,50 @@ fn preview(file_path: String, save_path: String) {
 
 #[tauri::command]
 fn processing(file_paths: Vec<String>, save_path: String) {
+    dbg!(&file_paths, &save_path);
     let large_field = file_paths[0].to_owned();
     let small_field = file_paths[1].to_owned();
-    let mut arrays = vec![];
+    // let mut arrays = vec![];
     match open_dcm_file(large_field) {
         Some(obj) => {
-            // large field
+            // Large field: find pattern of test-tool 
             let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
             let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
+            // save_to_image(arr.clone(), save_path);
             
-            // details
+            // Detector details
             let hospital = get_detail(&obj, tags::INSTITUTION_NAME);
             // ...
-            let new_arr = arr_correction(arr);
-            let (x1, y1, x2, y2) = find_center_line(new_arr.clone());
-            let theta_r = find_theta(x2, y1, y2);
-            let arr = rotate_array(theta_r, new_arr);
-            arrays.push(arr.clone());
-            let ypoints = fint_horizontal_line(arr.clone());
-            let xpoints = find_vertical_line(arr);
-            dbg!(&xpoints);
 
-            // small field
+            // Find Test-Tool
+            let arr = arr_correction(arr);
+            // Find Center Line
+            let (_, _, _, _, theta_r) = find_center_line(arr.clone());
+            // Adjust angle
+            let rotated_arr = rotate_array(theta_r, arr.clone());
+            // Fine Lines in Rotated array
+            let ypoints = fint_horizontal_line(rotated_arr.clone());
+            let xpoints = find_vertical_line(rotated_arr);
+
+            // Small field
             match open_dcm_file(small_field) {
                 Some(obj) => {
                     let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
                     let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
-                    let new_arr = arr_correction(arr);
-                    let arr2 = rotate_array(theta_r, new_arr);
-                    let res = find_rentangular_details(arr2.clone(), xpoints, ypoints);   
-                    let add_arr = add_arrays(arrays[0].clone(), arr2);
+                    let arr = arr_correction(arr);
+                    let rotated_arr2 = rotate_array(theta_r, arr);
+                    
+                    // Find the Edges
+                    // boxss_position(area for crop)
+                    let boxs_pos = boxs_posision(&xpoints, &ypoints, rotated_arr2.clone());
+                    // get crop area
+                    let crop_areas = get_crop_area(boxs_pos.clone(), rotated_arr2);
+                    // edges positions
+                    let edges_pos = find_edges_pos(crop_areas, boxs_pos);
+                    // Result: left, right, top, bottom [x1, y1, x2, y2, length]
+                    let (center_p, res_xy, res_length, res_err) = get_result(edges_pos, &xpoints, &ypoints);
+
+                    // let add_arr = add_arrays(arrays[0].clone(), arr2);
                     // save_to_image_u8(add_arr, "c:/Users/alant/Desktop/added.jpg".to_string());
                 },
                 None => {
@@ -75,31 +90,37 @@ fn processing(file_paths: Vec<String>, save_path: String) {
     }
 }
 
-fn arr_correction(arr: U16Array) -> U8Array {
+fn arr_correction(mut arr: U16Array) -> U16Array {
     // crop array as expect.
+    // Find Test-Tool
     let shape = arr.shape();
     let h = shape[0];
     let w = shape[1];
+    
+    // Not to u8 (for more precision U16)
     // convert arr to vec to convert pixel value [0, 255]
-    let u8_gray: Vec<u8> = convert_to_u8(arr.clone().into_raw_vec(), arr.len());
-    let mut new_arr = Array::from_shape_vec((h, w), u8_gray).unwrap();
-    let shape = new_arr.shape();
-    let h = shape[0];
-    let w = shape[1];
+    // let u8_gray: Vec<u8> = convert_to_u8(arr.clone().into_raw_vec(), arr.len());
+    // let mut new_arr = Array::from_shape_vec((h, w), u8_gray).unwrap();
+    // let shape = new_arr.shape();
+    // let h = shape[0];
+    // let w = shape[1];
+
     // crop only area of test tool
-    let p = 0.24; // experimental number
-    if (h*w) > (2000*2000) {
+    let p = 0.24; 
+    // if it larger than 2000^2, it not crop yet
+    if (h*w) > (2000*2000) { 
         let crop = [
             (p*(h as f32)) as i32,
             (h as f32 * (1.0-p)) as i32,
             (w as f32 * p) as i32,
             (w as f32 * (1.0-p)) as i32 
         ];
-        new_arr = new_arr.slice(
+        arr = arr.slice(
             s![crop[0]..crop[1], crop[2]..crop[3]]
         ).to_owned();
     }
-    new_arr
+
+    arr
 }
 
 /// Return
