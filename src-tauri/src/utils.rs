@@ -1,3 +1,4 @@
+use ndarray_stats::QuantileExt;
 use tauri::Manager;
 use std::collections::HashMap;
 use std::u16;
@@ -352,7 +353,7 @@ pub fn argmax(arr: U16Array, axis: u8) -> Vec<usize> {
             }
             argmax.push(argmax_col);
         }
-    } else {
+    } else if axis == 1 {
         for r in 0..rows {
             let mut max_val_row = 0;
             let mut argmax_row = 0;
@@ -365,31 +366,43 @@ pub fn argmax(arr: U16Array, axis: u8) -> Vec<usize> {
             }
             argmax.push(argmax_row);
         }
-    }
+    } 
 
     argmax 
 }
 
-/// convert number of pixel to centimeter as aspect ratio
-pub fn pixel2cm(ypoints: &Vec<i32>, number_pixels: i32, is_rotate: bool) -> f32 {
-    let _cm = (ypoints[2] - ypoints[1]) as f32;
-    let mut ratio = 7.0;
-    if is_rotate {
-        ratio = 9.0;
+fn argmax_1d(arr: U16Array) -> i32 {
+    let arr = arr.into_raw_vec();
+    let n = arr.len();
+    let mut max_v = 0;
+    let mut argmax = 0;
+    for i in 0..n {
+        if arr[i] > max_v {
+            max_v = arr[i];
+            argmax = i
+        }
     }
+
+    argmax as i32
+}
+
+/// convert number of pixel to centimeter as aspect ratio
+pub fn pixel2cm(ypoints: &Vec<i32>, number_pixels: i32) -> f32 {
+    let _cm = (ypoints[2] - ypoints[1]) as f32;
+    let ratio = 7.0;
     // 100.0 for 2 decimal round
     (number_pixels as f32 *ratio*100.0/_cm).round() / 100.0
 }
 
 //// convert centimeter to number of pixel as aspect ratio
-pub fn cm2pixel(ypoints: &Vec<i32>, cm: f32, is_rotate: bool) -> i32 {   
+pub fn cm2pixel(ypoints: &Vec<i32>, cm: f32) -> i32 {   
     let _cm = (ypoints[2] - ypoints[1]) as f32;
-    let mut ratio = 7.0;
-    if is_rotate {
-        ratio = 9.0;
-    }
+    let ratio = 7.0;
     (_cm*cm/ratio).round() as i32
 }
+
+
+// TODO
 
 //// find box of each xs, ys for croping edges area
 pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> Vec<[[i32; 2]; 2]> {
@@ -402,8 +415,8 @@ pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> V
     let mut pos = vec![];
 
     // Left-Right
-    let add_hor_crop = (w as f32 * 0.1) as i32;
-    let add_ver_crop = (h as f32 * 0.06) as i32;
+    let add_hor_crop = (w as f32 * 0.15) as i32;
+    let add_ver_crop = (h as f32 * 0.08) as i32;
     // Left
     let left_p = [xpoints[0], (ypoints[0] + ypoints[1])/2];
     let top_left_point = [max(left_p[0]-add_hor_crop, rotate_err), left_p[1]-add_ver_crop];
@@ -597,10 +610,10 @@ pub fn get_result(edges_pos: Vec<i32>, xpoints: &Vec<i32>, ypoints: &Vec<i32>) -
         [edges_pos[0], edges_pos[3], edges_pos[1], edges_pos[3]]
     ];
     let res_length = [
-        pixel2cm(&ypoints, center_p[0]-edges_pos[0], false),
-        pixel2cm(&ypoints, edges_pos[1]-center_p[0], false),
-        pixel2cm(&ypoints, center_p[1]-edges_pos[2], false),
-        pixel2cm(&ypoints, edges_pos[3]-center_p[1], false)
+        pixel2cm(&ypoints, center_p[0]-edges_pos[0]),
+        pixel2cm(&ypoints, edges_pos[1]-center_p[0]),
+        pixel2cm(&ypoints, center_p[1]-edges_pos[2]),
+        pixel2cm(&ypoints, edges_pos[3]-center_p[1])
     ];
     let res_err = [
         ((9.0 - res_length[0]) * 100.0).round() / 100.0,
@@ -610,4 +623,308 @@ pub fn get_result(edges_pos: Vec<i32>, xpoints: &Vec<i32>, ypoints: &Vec<i32>) -
     ];
 
     (center_p, res_xy, res_length, res_err)
+}
+
+
+pub fn split_q_circle(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> ([U16Array; 4], f32, (i32, i32)) {
+    // split the circle into 4q 
+    let one_cm_pixel = cm2pixel(ypoints, 1.0);
+    let xx = [xpoints[1]-one_cm_pixel, xpoints[1]+one_cm_pixel];
+    let yy = [ypoints[1]-one_cm_pixel, ypoints[1]+one_cm_pixel];
+    let circle_arr = arr.slice(s![
+        yy[0]..yy[1], xx[0]..xx[1]
+    ]).to_owned();
+    let inner_r = cm2pixel(ypoints, 0.41);
+    let outter_r = cm2pixel(ypoints, 0.71);
+    
+    // DEBUG
+    // let circle_arr = rotate_array(3.14, circle_arr);
+    save_to_image(circle_arr.clone(), "c:/Users/alant/Desktop/DEBUG.jpg".to_string());
+
+    // split 4q
+    let mut cir_f32 = vec![];
+    for v in circle_arr.clone().into_raw_vec() {cir_f32.push(v as f32);}
+    let white_ts = percentile(&cir_f32, 99.0);
+
+    let [xc, yc] = find_center_circle_line(circle_arr.clone());
+    let top_left = circle_arr.slice(s![
+        ..yc, ..xc
+    ]).to_owned();
+    let top_right = circle_arr.slice(s![
+        ..yc, xc+1.. 
+    ]).to_owned();
+    let bottom_left = circle_arr.slice(s![
+        yc+1.., ..xc
+    ]).to_owned();
+    let bottom_right = circle_arr.slice(s![
+        yc+1.., xc+1..
+    ]).to_owned();
+    
+    ([top_left, top_right, bottom_left, bottom_right], white_ts, (xc, yc))
+}
+
+fn find_center_circle_line(arr: U16Array) -> [i32; 2] {
+    let shape = arr.shape();
+    let h = shape[0] as i32;
+    let w = shape[1] as i32;
+    let hp = (0.2 * h as f32) as i32;
+    let wp = (0.06 * w as f32) as i32;
+
+    // left
+    let focus_l = arr.slice(s![
+        hp..h-hp, wp..wp*2
+    ]).to_owned();
+    let y1 = find_common_value(focus_l, 0) + hp;
+    // right
+    let focus_r = arr.slice(s![
+        hp..h-hp, w-(wp*2)..w-wp
+    ]).to_owned();
+    let y2 = find_common_value(focus_r, 0) + hp;
+    let y = ((y1 as f32 + y2 as f32)/2.0).ceil() as i32;
+
+    // top
+    let focus_t = arr.slice(s![
+        wp..-wp*2, hp..h-hp
+    ]).to_owned();
+    let x1 = find_common_value(focus_t, 1) + hp;
+    // bottom
+    let focus_b = arr.slice(s![
+        w-(wp*2)..w-wp, hp..h-hp
+    ]).to_owned();
+    let x2 = find_common_value(focus_b, 1) + hp;
+    let x = ((x1 as f32 + x2 as f32)/2.0).ceil() as i32;
+
+    [x, y]
+}
+
+pub fn farthest_q(q_arr: [U16Array; 4], white_ts: f32) -> (usize, [[usize; 2]; 2]) {
+    // q_array = [top_left, top_right, bottom_left, bottom_right]
+    // fartest point quadrate 
+    // return fartest quadrate, [row, col]
+    let mut farthest_q = 0;
+    let mut farthest = 0.0;
+    let (mut row_idx, mut col_idx) = (0, 0);
+    let white_ts = white_ts as u16;
+    // is first row, col
+    let config = [
+        (false, false),
+        (false, true),
+        (true, false),
+        (true, true)
+    ];
+    for (i, q) in q_arr.clone().into_iter().enumerate() {
+        let (x, y) = find_farthest_white(q.clone(), config[i].0, config[i].1, white_ts);
+        let d = ((x.pow(2) + y.pow(2)) as f64).sqrt();
+        if d >= farthest {
+            farthest = d;
+            farthest_q = i;
+            (row_idx, col_idx) = (x, y);
+        }
+    }
+
+    let mut farthest_point = [[row_idx as usize, 0], [0, col_idx as usize]];
+    let shape = q_arr[farthest_q].shape(); 
+    let nrows = shape[0] as i32;
+    let ncols = shape[1] as i32;
+    // // find corner of the point: find p_max col for row, ...
+    match farthest_q {
+        0 => {
+            // max_col for row
+            let slice_row = q_arr[farthest_q].slice(s![nrows - row_idx - 1, (ncols - col_idx - 1)..]).to_owned();
+            let reversed_slice_row: Vec<u16> = slice_row.iter().rev().cloned().collect();
+            farthest_point[0][1] = reversed_slice_row.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+
+            // max_row for col
+            let slice_col = q_arr[farthest_q].slice(s![(nrows - row_idx - 1).., ncols - col_idx - 1]).to_owned();
+            let reversed_slice_col: Vec<u16> = slice_col.iter().rev().cloned().collect();
+            farthest_point[1][0] = reversed_slice_col.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+        }
+        1 => {
+            // max_col for row
+            let slice_row = q_arr[farthest_q].slice(s![nrows - row_idx - 1, ..=col_idx]).to_owned();
+            farthest_point[0][1] = slice_row.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+
+            // max_row for col
+            let slice_col = q_arr[farthest_q].slice(s![(nrows - row_idx - 1).., col_idx]).to_owned();
+            let reversed_slice_col: Vec<u16> = slice_col.iter().rev().cloned().collect();
+            farthest_point[1][0] = reversed_slice_col.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+        }
+        2 => {
+            // max_col for row
+            let slice_row = q_arr[farthest_q].slice(s![row_idx, (ncols - col_idx - 1)..]).to_owned();
+            let reversed_slice_row: Vec<u16> = slice_row.iter().rev().cloned().collect();
+            farthest_point[0][1] = reversed_slice_row.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+
+            // max_row for col
+            let slice_col = q_arr[farthest_q].slice(s![..=row_idx, ncols - col_idx - 1]).to_owned();
+            farthest_point[1][0] = slice_col.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+        }
+        3 => {
+            // max_col for row
+            let slice_row = q_arr[farthest_q].slice(s![row_idx, ..=col_idx]).to_owned();
+            farthest_point[0][1] = slice_row.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+
+            // max_row for col
+            let slice_col = q_arr[farthest_q].slice(s![..=row_idx, col_idx]).to_owned();
+            farthest_point[1][0] = slice_col.iter().enumerate().max_by(|a, b| a.1.cmp(b.1)).map(|(i, _)| i).unwrap_or(0);
+        }
+        _ => {}
+    }
+
+    (farthest_q, farthest_point)
+}
+
+fn find_farthest_white(arr: U16Array, first_row: bool, first_col: bool, white_ts: u16) -> (i32, i32) {
+    // find find_farthest_white return (row, col)
+    let nrows = arr.nrows();
+    let ncols = arr.ncols();
+    let not_point_pixel_ts = 5;
+    let mut farthest_col = 0;
+    let mut not_white_r = 0;
+    // find cols first
+    for row in 0..nrows {
+        let mut not_white_c = 0;
+        for col in 0..ncols {
+            let new_row = if first_row { row } else { nrows - row - 1};
+            let new_col = if first_col { col } else { ncols - col - 1};
+            let p_val = arr[(new_row, new_col)];
+            if p_val >= white_ts {
+                not_white_c = 0;
+                if col > farthest_col {
+                    farthest_col = col;
+                }
+            } else {
+                not_white_c += 1;
+                if not_white_c >= not_point_pixel_ts {
+                    // break for row
+                    not_white_r += if col == not_point_pixel_ts-1 { 1 } else { 0 };
+                    break;
+                }
+            }
+        }
+        // break for row
+        if not_white_r >= not_point_pixel_ts {
+            break;
+        }
+    }
+
+    let mut farthest_row = 0;
+    let mut not_white_c = 0;
+    for col in 0..ncols {
+        let mut not_white_r = 0;
+        for row in 0..nrows {
+            let new_row = if first_row { row } else { nrows - row - 1 };
+            let new_col = if first_col { col } else { ncols - col - 1 };
+            let p_val = arr[(new_row, new_col)];
+            if p_val >= white_ts {
+                not_white_r = 0;
+                if row > farthest_row {
+                    farthest_row = row;
+                }
+            } else {
+                not_white_r += 1;
+                if not_white_r >= not_point_pixel_ts {
+                    not_white_c += if row == not_point_pixel_ts-1 { 1 } else { 0 };
+                    break;
+                }
+            }
+        }
+        if not_white_c >= not_point_pixel_ts {
+            break;
+        }
+    }
+
+    (farthest_row as i32, farthest_col as i32) 
+}
+
+pub fn center_point(farthest_point: [[usize; 2]; 2], q: usize, xc: i32, yc: i32) -> (usize, usize) {
+    // defined center point from fartest point
+    // return x, y
+    let mut x = farthest_point[0][1] as i32;
+    let mut y = farthest_point[1][0] as i32;
+    if q == 0 {
+        x = xc-1 - x;
+        y = yc-1 - y;
+    } else if q == 1 {
+        x = xc+1 + x;
+        y = yc-1 - y;
+    } else if q == 2 {
+        x = xc-1 - x;
+        y = yc+1 + y;
+    } else if q == 3 {
+        x = xc+1 + x;
+        y = yc+1 + y;
+    }
+
+    (x as usize, y as usize)
+}
+
+pub fn find_edge_tool(vector: Vec<u128>, n: usize, offset: usize, ts: u128) -> usize{
+    let mut start_vals = vec![];
+    let mut v = 0;
+    for i in 0..offset {
+        if ts >= vector[i] {
+            v = 1;
+        } else {
+            v = 0;
+        }
+        start_vals.push(v);
+    }
+
+    let start_val = find_mean(start_vals.clone(), start_vals.len());
+    let edge_ts = 10;
+    let mut cur_edge = 0;
+    let mut edge_pos = 0;
+    let mut p_val = 0;
+    for i in offset..n {
+        if ts >= vector[i] {
+            p_val = 1;
+        } else {
+            p_val = 0;
+        }
+        if p_val != start_val {
+            cur_edge += 1;
+        } else {
+            cur_edge = 0;
+        }
+        if cur_edge >= edge_ts {
+            edge_pos = i - edge_ts;
+            break;
+        }
+    }
+
+    edge_pos
+}
+
+pub fn find_mean(vector: Vec<u128>, n: usize) -> u16{
+    let sum: u128 = vector.iter().map(|&x| x as u128).sum();
+    let mean = sum as f64 / n as f64;
+    mean as u16
+}
+
+pub fn cast_type_arr(arr: U16Array) -> U128Array{
+    let h = arr.nrows();
+    let w = arr.ncols();
+    let arr_u128_vec = arr.iter()
+        .map(|&x| x as u128)
+        .collect::<Vec<_>>();
+    let arr_u128 = Array::from_shape_vec((h, w), arr_u128_vec).unwrap();
+    arr_u128
+}
+
+pub fn inv_lut(arr: U16Array) -> U16Array{
+    let max_pixel = arr.max().unwrap();
+    let min_pixel = arr.min().unwrap();
+    let ncols = arr.ncols();
+    let nrows = arr.nrows();
+    let mut inv_arr = arr.clone();
+    for i in 0..nrows{
+        for j in 0..ncols {
+            let val = arr[(i, j)];
+            let new_val = max_pixel - val + min_pixel;
+            inv_arr[(i, j)] = new_val;
+        }
+    }
+
+    inv_arr
 }
