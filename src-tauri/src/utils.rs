@@ -403,8 +403,8 @@ fn argmax_vec(vector: Vec<f32>) -> (usize, f32) {
 pub fn pixel2cm(ypoints: &Vec<i32>, number_pixels: i32) -> f32 {
     let _cm = (ypoints[2] - ypoints[1]) as f32;
     let ratio = 7.0;
-    // 100.0 for 2 decimal round
-    (number_pixels as f32 *ratio*100.0/_cm).round() / 100.0
+    // 1000.0 for 3 decimal round
+    (number_pixels as f32 *ratio*1000.0/_cm).round() / 1000.0
 }
 
 //// convert centimeter to number of pixel as aspect ratio
@@ -526,7 +526,7 @@ pub fn find_edges_pos(crop_areas: [U16Array; 8], boxs_pos: Vec<[[i32; 2]; 2]>, x
     for (q, crop_area) in crop_areas.into_iter().enumerate() {
         by_x = q <= 3; 
         // adjust to the image
-        let [top_lefts, bottom_right] = boxs_pos[q];
+        let [top_lefts, _] = boxs_pos[q];
         let mut top_left;
         if by_x {
             top_left = top_lefts[0];
@@ -588,7 +588,7 @@ fn central_diff(pixels: U16Array, top_left: i32, xypoint: i32, by_x: bool, ypoin
     let (peak_loc, half_peak) = find_peak(med_edge.clone());
     
     // find edge not the actual line
-    let far_pixel = cm2pixel(ypoints, 0.26) as usize;
+    let far_pixel = cm2pixel(ypoints, 0.28) as usize;
     let left_start = peak_loc - far_pixel;
     let left_walk = left_start + 1;
     let right_start = peak_loc + far_pixel;
@@ -673,7 +673,7 @@ fn bounder_percentile(arr: &Vec<f32>, q: f32) -> [usize; 2] {
 
 fn find_peak(arr: Vec<f32>) -> (usize, f32) {
     let (peak_loc, max_v) = argmax_vec(arr);
-    let half_peak = max_v/2.;
+    let half_peak = max_v * 0.7;
     (peak_loc, half_peak)
 }
 
@@ -697,36 +697,10 @@ fn percentile(arr: &Vec<f32>, q: f32) -> f32 {
     }
 }
 
-pub fn get_result(edges_pos: Vec<i32>, xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> ([i32; 2], [[i32; 4]; 4], [f32; 4], [f32; 4]){
-    // get result from edge_positons
-    let center_p = [xpoints[1], ypoints[1]];
-    // x1, y1, x2, y2
-    let res_xy = [
-        [edges_pos[0], edges_pos[2], edges_pos[0], edges_pos[3]],
-        [edges_pos[1], edges_pos[2], edges_pos[1], edges_pos[3]],
-        [edges_pos[0], edges_pos[2], edges_pos[1], edges_pos[2]],
-        [edges_pos[0], edges_pos[3], edges_pos[1], edges_pos[3]]
-    ];
-    let res_length = [
-        pixel2cm(&ypoints, center_p[0]-edges_pos[0]),
-        pixel2cm(&ypoints, edges_pos[1]-center_p[0]),
-        pixel2cm(&ypoints, center_p[1]-edges_pos[2]),
-        pixel2cm(&ypoints, edges_pos[3]-center_p[1])
-    ];
-    let res_err = [
-        ((9.0 - res_length[0]) * 100.0).round() / 100.0,
-        ((9.0 - res_length[1]) * 100.0).round() / 100.0,
-        ((7.0 - res_length[2]) * 100.0).round() / 100.0,
-        ((7.0 - res_length[3]) * 100.0).round() / 100.0,
-    ];
-
-    (center_p, res_xy, res_length, res_err)
-}
-
 
 pub fn split_q_circle(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> ([U16Array; 4], f32, (i32, i32)) {
     // split the circle into 4q 
-    let one_cm_pixel = cm2pixel(ypoints, 1.0);
+    let one_cm_pixel = cm2pixel(ypoints, 0.9);
     let xx = [xpoints[1]-one_cm_pixel, xpoints[1]+one_cm_pixel];
     let yy = [ypoints[1]-one_cm_pixel, ypoints[1]+one_cm_pixel];
     let circle_arr = arr.slice(s![
@@ -737,7 +711,6 @@ pub fn split_q_circle(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> 
     
     // DEBUG
     // let circle_arr = rotate_array(3.14, circle_arr);
-    save_to_image(circle_arr.clone(), "c:/Users/alant/Desktop/DEBUG.jpg".to_string());
 
     // split 4q
     let mut cir_f32 = vec![];
@@ -766,28 +739,28 @@ fn find_center_circle_line(arr: U16Array) -> [i32; 2] {
     let h = shape[0] as i32;
     let w = shape[1] as i32;
     let hp = (0.2 * h as f32) as i32;
-    let wp = (0.06 * w as f32) as i32;
+    let wp = (0.05 * w as f32) as i32;
 
     // left
     let focus_l = arr.slice(s![
-        hp..h-hp, wp..wp*2
+        hp..h-hp, wp..wp*4
     ]).to_owned();
     let y1 = find_common_value(focus_l, 0) + hp;
     // right
     let focus_r = arr.slice(s![
-        hp..h-hp, w-(wp*2)..w-wp
+        hp..h-hp, w-(wp*2)..w
     ]).to_owned();
     let y2 = find_common_value(focus_r, 0) + hp;
     let y = ((y1 as f32 + y2 as f32)/2.0).ceil() as i32;
 
     // top
     let focus_t = arr.slice(s![
-        wp..-wp*2, hp..h-hp
+        wp..wp*3, hp..h-hp
     ]).to_owned();
     let x1 = find_common_value(focus_t, 1) + hp;
     // bottom
     let focus_b = arr.slice(s![
-        w-(wp*2)..w-wp, hp..h-hp
+        w-(wp*2)..w, hp..h-hp
     ]).to_owned();
     let x2 = find_common_value(focus_b, 1) + hp;
     let x = ((x1 as f32 + x2 as f32)/2.0).ceil() as i32;
@@ -876,59 +849,32 @@ fn find_farthest_white(arr: U16Array, first_row: bool, first_col: bool, white_ts
     // find find_farthest_white return (row, col)
     let nrows = arr.nrows();
     let ncols = arr.ncols();
-    let not_point_pixel_ts = 5;
     let mut farthest_col = 0;
-    let mut not_white_r = 0;
     // find cols first
     for row in 0..nrows {
-        let mut not_white_c = 0;
         for col in 0..ncols {
             let new_row = if first_row { row } else { nrows - row - 1};
             let new_col = if first_col { col } else { ncols - col - 1};
             let p_val = arr[(new_row, new_col)];
             if p_val >= white_ts {
-                not_white_c = 0;
                 if col > farthest_col {
                     farthest_col = col;
                 }
-            } else {
-                not_white_c += 1;
-                if not_white_c >= not_point_pixel_ts {
-                    // break for row
-                    not_white_r += if col == not_point_pixel_ts-1 { 1 } else { 0 };
-                    break;
-                }
-            }
-        }
-        // break for row
-        if not_white_r >= not_point_pixel_ts {
-            break;
+            } 
         }
     }
 
     let mut farthest_row = 0;
-    let mut not_white_c = 0;
     for col in 0..ncols {
-        let mut not_white_r = 0;
         for row in 0..nrows {
             let new_row = if first_row { row } else { nrows - row - 1 };
             let new_col = if first_col { col } else { ncols - col - 1 };
             let p_val = arr[(new_row, new_col)];
             if p_val >= white_ts {
-                not_white_r = 0;
                 if row > farthest_row {
                     farthest_row = row;
                 }
-            } else {
-                not_white_r += 1;
-                if not_white_r >= not_point_pixel_ts {
-                    not_white_c += if row == not_point_pixel_ts-1 { 1 } else { 0 };
-                    break;
-                }
-            }
-        }
-        if not_white_c >= not_point_pixel_ts {
-            break;
+            } 
         }
     }
 
@@ -1046,7 +992,7 @@ fn find_intersection(m1: f32, b1: f32, m2:f32, b2: f32) -> [i32; 2] {
     [x.round() as i32, y.round() as i32]
 }
 
-pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) -> [[i32; 2];4] {
+pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) -> ([[i32; 2];4], [[f32; 2];4]) {
     // find 4 points(top-left[x, y], top-right, bottom_left, bottom-right) of the edges
     let ly = [(boxs_pos[0][0][1] + boxs_pos[0][1][0])/2, (boxs_pos[1][0][1] + boxs_pos[1][1][1])/2];
     let ry = [(boxs_pos[2][0][1] + boxs_pos[2][1][1])/2, (boxs_pos[3][0][1] + boxs_pos[3][1][1])/2];
@@ -1063,5 +1009,109 @@ pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) 
     let [bottom_xl, bottom_yl] = find_intersection(ml, bl, mb, bb);
     let [bottom_xr, bottom_yr] = find_intersection(mr, br, mb, bb);
 
-    [[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]]
+    ([[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]], [[ml, bl], [mr, br], [mt, bt], [mb, bb]])
+}
+
+pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>) {
+    // find length from linear line(m, b)
+    // return most err length, middle lenght
+    let mut results = vec![];
+    let mut results_pos = vec![];
+    let [[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]] = points;
+    let [[ml, bl], [mr, br], [mt, bt], [mb, bb]] = mbs;
+    
+    // left
+    let max_left_t = ((top_yl as f32 - bl)/ml).round() as i32;
+    let middle_left = ((ypoints[1] as f32 - bl)/ml).round() as i32;
+    let max_left_b = ((bottom_yl as f32 - bl)/ml).round() as i32;
+    let err_left_t = max_left_t - xpoints[0];
+    let err_left_m = middle_left - xpoints[0];
+    let err_left_b = max_left_b - xpoints[0];
+    let left_length;
+    let max_err;
+    let middle_err = pixel2cm(ypoints, err_left_m);
+    let middle_length = 9.0 - middle_err;
+    if err_left_t.abs() > err_left_b.abs() {
+        max_err = pixel2cm(ypoints, err_left_t);
+        left_length = 9.0 - max_err;
+        results_pos.push([[top_xl, top_yl], [middle_left, ypoints[1]]]);
+    } else {
+        max_err = pixel2cm(ypoints, err_left_b);
+        left_length = 9.0 - max_err;
+        results_pos.push([[bottom_xl, bottom_yl], [middle_left, ypoints[1]]]);
+    }
+    results.push([[left_length, -max_err], [middle_length, -middle_err]]);
+
+    // right
+    let max_right_t = ((top_yr as f32 - br)/mr).round() as i32;
+    let middle_right = ((ypoints[1] as f32 - br)/mr).round() as i32;
+    let max_right_b = ((bottom_yr as f32 - br)/mr).round() as i32;
+    let err_right_t = xpoints[2] - max_right_t;
+    let err_right_m = xpoints[2] - middle_right;
+    let err_right_b = xpoints[2] - max_right_b;
+    let right_length;
+    let max_err;
+    let middle_err = pixel2cm(ypoints, err_right_m);
+    let middle_length = 9.0 - middle_err;
+    if err_right_t.abs() > err_right_b.abs() {
+        max_err = pixel2cm(ypoints, err_right_t);
+        right_length = 9.0 - max_err;
+        results_pos.push([[top_xr, top_yr], [middle_right, ypoints[1]]]);
+    } else {
+        max_err = pixel2cm(ypoints, err_right_b);
+        right_length = 9.0 - max_err;
+        results_pos.push([[bottom_xr, bottom_yr], [middle_right, ypoints[1]]]);
+    }
+    results.push([[right_length, -max_err], [middle_length, -middle_err]]);
+
+    // top
+    let max_top_l = ((mt * top_xl as f32) + bt).round() as i32;
+    let middle_top = ((mt * xpoints[1] as f32) + bt).round() as i32;
+    let max_top_r = ((mt * top_xr as f32) + bt).round() as i32;
+    let err_top_l = max_top_l - ypoints[0];
+    let err_top_m = middle_top - ypoints[0];
+    let err_top_r = max_top_r - ypoints[0];
+    let top_length;
+    let max_err;
+    let middle_err = pixel2cm(ypoints, err_top_m);
+    let middle_length = 7.0 - middle_err;
+    if err_top_l.abs() > err_top_r.abs() {
+        max_err = pixel2cm(ypoints, err_top_l);
+        top_length = 7.0 - max_err;
+        results_pos.push([[top_xl, top_yl], [xpoints[1], middle_top]]);
+    } else {
+        max_err = pixel2cm(ypoints, err_top_r);
+        top_length = 7.0 - max_err;
+        results_pos.push([[top_xr, top_yr], [xpoints[1], middle_top]]);
+    }
+    results.push([[top_length, -max_err], [middle_length, -middle_err]]);
+
+    // bottom
+    let max_bottom_l = ((mb * bottom_xl as f32) + bb).round() as i32;
+    let middle_bottom = ((mb * xpoints[1] as f32) + bb).round() as i32;
+    let max_bottom_r = ((mb * bottom_xr as f32) + bb).round() as i32;
+    let err_bottom_l = ypoints[2] - max_bottom_l;
+    let err_bottom_m = ypoints[2] - middle_bottom;
+    let err_bottom_r = ypoints[2] - max_bottom_r;
+    let bottom_length;
+    let max_err;
+    let middle_err = pixel2cm(ypoints, err_bottom_m);
+    let middle_length = 7.0 - middle_err;
+    if err_bottom_l.abs() > err_bottom_r.abs() {
+        max_err = pixel2cm(ypoints, err_bottom_l);
+        bottom_length = 7.0 - max_err;
+        results_pos.push([[bottom_xl, bottom_yl], [xpoints[1], middle_bottom]]);
+    } else {
+        max_err = pixel2cm(ypoints, err_bottom_r);
+        bottom_length = 7.0 - max_err;
+        results_pos.push([[bottom_xr, bottom_yr], [xpoints[1], middle_bottom]]);
+    }
+    results.push([[bottom_length, -max_err], [middle_length, -middle_err]]);
+
+    (results, results_pos)
+}
+
+pub fn distance_pixel(x1: usize, y1: usize, x2: usize, y2: usize) -> usize {
+    // find distance from 2 point return pixel distance
+    ((x2 as f32 - x1 as f32).powi(2) + (y2 as f32 - y1 as f32).powi(2)).sqrt().round() as usize
 }

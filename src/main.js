@@ -42,7 +42,7 @@ async function process() {
   // }, 3000);
 
   const res = await invoke("processing", {
-    filePaths: ["c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/3/00000000", "c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/3/00000001"],
+    filePaths: ["c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/smc 2/00000000", "c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/smc 2/00000001"],
     savePath: "c:/Users/alant/Desktop/test-save-file.jpg",
   });
 }
