@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
 use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line, boxs_posision, find_edges_pos, get_result, split_q_circle, farthest_q, center_point};
-use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array, find_edge_tool, find_mean, cast_type_arr, inv_lut};
+use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array, find_edge_tool, find_mean, cast_type_arr, inv_lut, rectangle_edge_points};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
 use dicom::pixeldata::image::{flat, GrayImage};
@@ -117,21 +117,24 @@ fn processing(file_paths: Vec<String>, save_path: String) {
                     // save_to_image(rotated_arr2.clone(), "c:/Users/alant/Desktop/arr2.jpg".to_string());
                     
                     // Find the Edges
-                    // boxss_position(area for crop)
+                    // boxs_position(area for crop)
                     let boxs_pos = boxs_posision(&xpoints, &ypoints, rotated_arr2.clone());
                     // get crop area
                     let crop_areas = get_crop_area(boxs_pos.clone(), rotated_arr2.clone());
-                    // edges positions
-                    let edges_pos = find_edges_pos(crop_areas, boxs_pos);
-                    // Result: left, right, top, bottom [x1, y1, x2, y2, length]
-                    let (center_p, res_xy, res_length, res_err) = get_result(edges_pos, &xpoints, &ypoints);
+                    // // edges positions
+                    let xypoints = [xpoints[0], xpoints[0], xpoints[2], xpoints[2], ypoints[0], ypoints[0], ypoints[2], ypoints[2]];
+                    let edges_pos = find_edges_pos(crop_areas, boxs_pos.clone(), xypoints, &ypoints);
+                    // find 4 points(top-left[x, y], top-right, bottom_left, bottom-right) of the edges
+                    let points = rectangle_edge_points(boxs_pos, edges_pos);
+                    // // Result: left, right, top, bottom [x1, y1, x2, y2, length]
+                    // let (center_p, res_xy, res_length, res_err) = get_result(edges_pos, &xpoints, &ypoints);
 
-                    // Fine the circles
-                    let (q_arr, white_ts, (xc, yc)) = split_q_circle(&xpoints, &ypoints, rotated_arr2);
-                    let (farthest_q, farthest_point) = farthest_q(q_arr.clone(), white_ts);
-                    let (x, y) = center_point(farthest_point, farthest_q, xc, yc);
-                    dbg!(x, y);
-                    dbg!(center_p, res_xy, res_length, res_err);
+                    // // Fine the circles
+                    // let (q_arr, white_ts, (xc, yc)) = split_q_circle(&xpoints, &ypoints, rotated_arr2);
+                    // let (farthest_q, farthest_point) = farthest_q(q_arr.clone(), white_ts);
+                    // let (x, y) = center_point(farthest_point, farthest_q, xc, yc);
+                    // dbg!(x, y);
+                    // dbg!(center_p, res_xy, res_length, res_err);
                     // let add_arr = add_arrays(arrays[0].clone(), arr2);
                     // save_to_image_u8(add_arr, "c:/Users/alant/Desktop/added.jpg".to_string());
                 },

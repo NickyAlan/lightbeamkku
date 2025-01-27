@@ -386,6 +386,19 @@ fn argmax_1d(arr: U16Array) -> i32 {
     argmax as i32
 }
 
+fn argmax_vec(vector: Vec<f32>) -> (usize, f32) {
+    let n = vector.len();
+    let mut max_v = 0.0;
+    let mut argmax = 0;
+    for i in 0..n {
+        if vector[i] > max_v {
+            max_v = vector[i];
+            argmax = i;
+        }
+    }
+    (argmax, max_v as f32)
+}
+
 /// convert number of pixel to centimeter as aspect ratio
 pub fn pixel2cm(ypoints: &Vec<i32>, number_pixels: i32) -> f32 {
     let _cm = (ypoints[2] - ypoints[1]) as f32;
@@ -402,8 +415,6 @@ pub fn cm2pixel(ypoints: &Vec<i32>, cm: f32) -> i32 {
 }
 
 
-// TODO
-
 //// find box of each xs, ys for croping edges area
 pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> Vec<[[i32; 2]; 2]> {
     // return box position(top-left(x, y), bottom-right(x, y))
@@ -417,14 +428,28 @@ pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> V
     // Left-Right
     let add_hor_crop = (w as f32 * 0.15) as i32;
     let add_ver_crop = (h as f32 * 0.08) as i32;
-    // Left
-    let left_p = [xpoints[0], (ypoints[0] + ypoints[1])/2];
+    // Left1
+    let left_p = [xpoints[0], (ypoints[0] as f32 *3./4. + ypoints[1] as f32 /4.) as i32];
+    let top_left_point = [max(left_p[0]-add_hor_crop, rotate_err), left_p[1]-add_ver_crop];
+    let bottom_right_point = [left_p[0]+add_hor_crop, left_p[1]+add_ver_crop];
+    pos.push([top_left_point, bottom_right_point]);
+    // Left2
+    let left_p = [xpoints[0], (ypoints[1] as f32 /4. + ypoints[2] as f32 * 3./4.) as i32];
     let top_left_point = [max(left_p[0]-add_hor_crop, rotate_err), left_p[1]-add_ver_crop];
     let bottom_right_point = [left_p[0]+add_hor_crop, left_p[1]+add_ver_crop];
     pos.push([top_left_point, bottom_right_point]);
 
-    // Right
-    let right_p = [xpoints[2], (ypoints[0] + ypoints[1]) / 2];
+    // Right1
+    let right_p = [xpoints[2], (ypoints[0] as f32 * 3./4. + ypoints[1] as f32 / 4.) as i32];
+    let top_left_point = [right_p[0] - add_hor_crop, right_p[1] - add_ver_crop];
+    let bottom_right_point = [
+        (right_p[0] + add_hor_crop).min(w as i32 - rotate_err - 1),
+        right_p[1] + add_ver_crop,
+    ];
+    pos.push([top_left_point, bottom_right_point]);
+
+    // Right2
+    let right_p = [xpoints[2], (ypoints[1] as f32 / 4. + ypoints[2] as f32 * 3./4.) as i32];
     let top_left_point = [right_p[0] - add_hor_crop, right_p[1] - add_ver_crop];
     let bottom_right_point = [
         (right_p[0] + add_hor_crop).min(w as i32 - rotate_err - 1),
@@ -433,8 +458,8 @@ pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> V
     pos.push([top_left_point, bottom_right_point]);
 
     // Top-Bottom
-    // Top
-    let top_p = [(xpoints[1] + xpoints[2]) / 2, ypoints[0]];
+    // Top1
+    let top_p = [(xpoints[1] as f32 * 6./8. + xpoints[0] as f32 * 1./4.) as i32, ypoints[0]];
     let top_left_point = [
         top_p[0] - add_ver_crop,
         (top_p[1] - add_hor_crop).max(rotate_err),
@@ -442,7 +467,28 @@ pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> V
     let bottom_right_point = [top_p[0] + add_ver_crop, top_p[1] + add_hor_crop];
     pos.push([top_left_point, bottom_right_point]);
 
-    // Bottom
+    // Top2
+    let top_p = [(xpoints[1] as f32 / 4. + xpoints[2] as f32 * 3./4.) as i32, ypoints[0]];
+    let top_left_point = [
+        top_p[0] - add_ver_crop,
+        (top_p[1] - add_hor_crop).max(rotate_err),
+    ];
+    let bottom_right_point = [top_p[0] + add_ver_crop, top_p[1] + add_hor_crop];
+    pos.push([top_left_point, bottom_right_point]);
+
+    // Bottom1
+    let bottop_p = [(xpoints[1] as f32 * 3./8. + xpoints[0] as f32 * 5./8.) as i32, ypoints[2]];
+    let top_left_point = [
+        bottop_p[0] - add_ver_crop,
+        bottop_p[1] - add_hor_crop,
+    ];
+    let bottom_right_point = [
+        bottop_p[0] + add_ver_crop,
+        (bottop_p[1] + add_hor_crop).min(h as i32 - rotate_err - 1),
+    ];
+    pos.push([top_left_point, bottom_right_point]);
+
+    // Bottom2
     let bottop_p = [(xpoints[1] + xpoints[2]) / 2, ypoints[2]];
     let top_left_point = [
         bottop_p[0] - add_ver_crop,
@@ -457,7 +503,7 @@ pub fn boxs_posision(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> V
     pos
 }
 
-pub fn get_crop_area(positions: Vec<[[i32; 2]; 2]>, arr: U16Array) -> [U16Array; 4]{
+pub fn get_crop_area(positions: Vec<[[i32; 2]; 2]>, arr: U16Array) -> [U16Array; 8]{
     // for left, right, top, bottom
     // get crop area pixels from the top_left_point, bottom_right_point
     
@@ -474,32 +520,36 @@ pub fn get_crop_area(positions: Vec<[[i32; 2]; 2]>, arr: U16Array) -> [U16Array;
     focuses.try_into().unwrap()
 }
 
-pub fn find_edges_pos(crop_areas: [U16Array; 4], boxs_pos: Vec<[[i32; 2]; 2]>) -> Vec<i32> {
+pub fn find_edges_pos(crop_areas: [U16Array; 8], boxs_pos: Vec<[[i32; 2]; 2]>, xypoints: [i32; 8], ypoints: &Vec<i32>) -> Vec<i32> {
     let mut edges_pos = vec![];
     let mut by_x;
     for (q, crop_area) in crop_areas.into_iter().enumerate() {
-        by_x = q <= 1; // x-axis(0, 1), y-axis(2, 3)
-        // central diff
-        let mut edge_pos = central_diff(crop_area, by_x) as i32;
+        by_x = q <= 3; 
         // adjust to the image
-        let [top_left, bottom_right] = boxs_pos[q];
-        // x-axis: add x
-        if q<=1 {
-            edge_pos = edge_pos + top_left[0];
+        let [top_lefts, bottom_right] = boxs_pos[q];
+        let mut top_left;
+        if by_x {
+            top_left = top_lefts[0];
         } else {
-            edge_pos = edge_pos + top_left[1];
+            top_left = top_lefts[1];
         }
+        // central diff
+        let mut edge_pos = central_diff(crop_area, top_left, xypoints[q], by_x, ypoints) as i32;
+        // x-axis: add x
+        edge_pos = edge_pos + top_left;
         edges_pos.push(edge_pos);
     }
     edges_pos
 }
 
-fn central_diff(pixels: U16Array, by_x: bool) -> usize {
+fn central_diff(pixels: U16Array, top_left: i32, xypoint: i32, by_x: bool, ypoints: &Vec<i32>) -> usize {
     // find most difference position
     // by_x(True, False) = (x, y)
     let nrows = pixels.nrows();
     let ncols = pixels.ncols();
     let mut edge_pixels = vec![];
+    let adjust_pos = (xypoint - top_left) as usize;
+    let half_line_w = cm2pixel(ypoints, 0.04) as usize;
 
     if by_x {
         // fininte difference by cols
@@ -527,9 +577,51 @@ fn central_diff(pixels: U16Array, by_x: bool) -> usize {
     }
 
     let mut med_edge = median_by_col(edge_pixels);
-    let [first_pos, last_pos] = bounder_percentile(&mut med_edge, 99.0);
-    let avg_pos = (first_pos + last_pos)/2;
-    let edge_pos = avg_pos + 1;
+    // remove actual line
+    let new_val = med_edge[adjust_pos - half_line_w - 1].clone();
+    let start = adjust_pos - half_line_w;
+    let end = adjust_pos + half_line_w;
+    for i in start..end {
+        med_edge[i] = new_val;
+    }
+    
+    let (peak_loc, half_peak) = find_peak(med_edge.clone());
+    
+    // find edge not the actual line
+    let far_pixel = cm2pixel(ypoints, 0.26) as usize;
+    let left_start = peak_loc - far_pixel;
+    let left_walk = left_start + 1;
+    let right_start = peak_loc + far_pixel;
+    let right_walk = med_edge.len() - right_start;
+    let range_line = [adjust_pos-half_line_w*2, adjust_pos+half_line_w*2];
+    let mut edge_pos = peak_loc + 1;
+
+    // right check
+    for i in 0..right_walk {
+        let cur_loc = right_start + i;
+        let pixel_val = med_edge[cur_loc];
+        if pixel_val >= half_peak {
+            if !(range_line[0] <= cur_loc && cur_loc < range_line[1]) {
+                let find_range = [cur_loc, cur_loc+(half_line_w*2)];
+                edge_pos = find_range[0] + argmax_vec(med_edge[find_range[0]..find_range[1]].to_vec()).0 + 1;
+            }
+            break;
+        }
+    }
+
+    // left check
+    for i in 0..left_walk {
+        let cur_loc = left_walk - i;
+        let pixel_val = med_edge[cur_loc];
+        if pixel_val >= half_peak {
+            if !(range_line[0] <= cur_loc && cur_loc < range_line[1]) {
+                let find_range = [cur_loc-(half_line_w*2), cur_loc];
+                edge_pos = find_range[0] + argmax_vec(med_edge[find_range[0]..find_range[1]].to_vec()).0 + 1;
+            }
+            break;
+        }
+    }
+
     edge_pos
 }
 
@@ -575,8 +667,14 @@ fn bounder_percentile(arr: &Vec<f32>, q: f32) -> [usize; 2] {
             break;
         }
     }
-    
+
     [first_pos, last_pos]
+}
+
+fn find_peak(arr: Vec<f32>) -> (usize, f32) {
+    let (peak_loc, max_v) = argmax_vec(arr);
+    let half_peak = max_v/2.;
+    (peak_loc, half_peak)
 }
 
 fn percentile(arr: &Vec<f32>, q: f32) -> f32 {
@@ -927,4 +1025,43 @@ pub fn inv_lut(arr: U16Array) -> U16Array{
     }
 
     inv_arr
+}
+
+fn linear_equation(x1: i32, y1: i32, x2: i32, y2: i32) -> [f32; 2] {
+    // prevent divided by zero
+    let m;
+    if x2 == x1 {
+        m = (y2 - y1) as f32 / 0.000000001;
+    } else {
+        m = (y2 - y1) as f32 / (x2- x1) as f32
+    }
+    let b = y1 as f32 - m * x1 as f32;
+    [m, b]
+}
+
+fn find_intersection(m1: f32, b1: f32, m2:f32, b2: f32) -> [i32; 2] {
+    // find intersection point(x, y) of 2 lines (m, b)
+    let x = (b2 - b1) / (m1 - m2);
+    let y = m1 * x + b1;
+    [x.round() as i32, y.round() as i32]
+}
+
+pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) -> [[i32; 2];4] {
+    // find 4 points(top-left[x, y], top-right, bottom_left, bottom-right) of the edges
+    let ly = [(boxs_pos[0][0][1] + boxs_pos[0][1][0])/2, (boxs_pos[1][0][1] + boxs_pos[1][1][1])/2];
+    let ry = [(boxs_pos[2][0][1] + boxs_pos[2][1][1])/2, (boxs_pos[3][0][1] + boxs_pos[3][1][1])/2];
+    let tx = [(boxs_pos[4][0][0] + boxs_pos[4][1][0])/2, (boxs_pos[5][0][0] + boxs_pos[5][1][0])/2];
+    let bx = [(boxs_pos[6][0][0] + boxs_pos[6][1][0])/2, (boxs_pos[7][0][0] + boxs_pos[7][1][0])/2];
+
+    let [ml, bl] = linear_equation(edges_pos[0], ly[0], edges_pos[1], ly[1]);
+    let [mr, br] = linear_equation(edges_pos[2], ry[0], edges_pos[3], ly[1]);
+    let [mt, bt] = linear_equation(tx[0], edges_pos[4], tx[1], edges_pos[5]);
+    let [mb, bb] = linear_equation(bx[0], edges_pos[6], bx[1], edges_pos[7]);
+
+    let [top_xl, top_yl] = find_intersection(ml, bl, mt, bt);
+    let [top_xr, top_yr] = find_intersection(mr, br, mt, bt);
+    let [bottom_xl, bottom_yl] = find_intersection(ml, bl, mb, bb);
+    let [bottom_xr, bottom_yr] = find_intersection(mr, br, mb, bb);
+
+    [[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]]
 }
