@@ -149,10 +149,9 @@ li a:not(#appName a):hover {
 }
 
 .loading {
-  width: 97%;
+  width: 96%;
   height: 90vh;
   display: flex;
-  /* background: red; */
   justify-content: center;
   align-items: center;
   display: none;

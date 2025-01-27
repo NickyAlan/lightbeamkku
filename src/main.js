@@ -1,9 +1,9 @@
 const { invoke } = window.__TAURI__.tauri;
 const { tempdir } = window.__TAURI__.os;
 const { convertFileSrc } = window.__TAURI__.tauri;
-const { open, message } = window.__TAURI__.dialog;
+const { open, message, save } = window.__TAURI__.dialog;
 const { appDataDir } = window.__TAURI__.path;
-const { createDir, exists } = window.__TAURI__.fs;
+const { createDir, exists, writeBinaryFile } = window.__TAURI__.fs;
 
 // load image
 const inputDiv = document.querySelector(".file-input-container");
@@ -21,30 +21,63 @@ const loadingDiv = document.querySelector(".loading");
 // show result
 const resultDiv = document.querySelector(".result");
 const backBtn = document.getElementById("backBtn");
+const resultImage = document.getElementById("resultImage");
+const resultImageCir = document.getElementById("resultImageCir");
 
 // Database
 const openDb = document.getElementById("openDb");
 const saveDb = document.getElementById("saveDb");
 
-let filePathsImage = [];
+let filePathsImage = ["", ""];
 let imageSelectCount = 0;
 let largeCheck = false;
 let smallCheck = false;
 
 async function process() {
+  console.log(filePathsImage);
   console.log("processing...");
-  // inputDiv.style.display = "none";
-  // loadingDiv.style.display = "flex";
+  // loading screen
+  inputDiv.style.display = "none";
+  loadingDiv.style.display = "flex";
 
+  // // save path
+  // const currentDateTime = new Date();
+  // const year = currentDateTime.getFullYear();
+  // const month = String(currentDateTime.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  // const day = String(currentDateTime.getDate()).padStart(2, "0");
+  // const hours = String(currentDateTime.getHours()).padStart(2, "0");
+  // const minutes = String(currentDateTime.getMinutes()).padStart(2, "0");
+  // const seconds = String(currentDateTime.getSeconds()).padStart(2, "0");
+  // const formattedDateTime = `${year}${month}${day}${hours}${minutes}${seconds}`;
+
+  // const tempDir = await tempdir();
+  // const savePath = [
+  //   `${tempDir}${formattedDateTime}.jpg`,
+  //   `${tempDir}${formattedDateTime}+cir.jpg`,
+  // ];
+
+  // const res = await invoke("processing", {
+  //   filePaths: filePathsImage,
+  //   savePath: savePath,
+  // });
+
+  // // DEBUG
+  // // const res = await invoke("processing", {
+  // //   filePaths: ["c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/smc 2/00000000", "c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/smc 2/00000001"],
+  // //   savePath: "c:/Users/alant/Desktop/test-save-file.jpg",
+  // // });
+
+  // // result screen
+  // resultImage.src = convertFileSrc(savePath[0]);
+  // resultImageCir.src = convertFileSrc(savePath[1]);
+  // loadingDiv.style.display = "none";
+  // resultDiv.style.display = "grid";
+
+  // DEBUG
   // setTimeout(() => {
   //   loadingDiv.style.display = "none";
   //   resultDiv.style.display = "grid";
-  // }, 3000);
-
-  const res = await invoke("processing", {
-    filePaths: ["c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/smc 2/00000000", "c:/Users/alant/Desktop/Project#4/DR-Light-beam-test/lb/smc 2/00000001"],
-    savePath: "c:/Users/alant/Desktop/test-save-file.jpg",
-  });
+  // }, 2000);
 }
 
 async function savePreviewImage(filePath, savePath) {
@@ -86,10 +119,10 @@ async function readFile(size) {
 
     if (!file_type || file_type == "dcm" || file_type == "dicom") {
       const tempDir = await tempdir();
-      filePathsImage.push(filePath);
       let savePath = `${tempDir}${size}${imageSelectCount}LB.jpg`;
 
       if (size == "large") {
+        filePathsImage[0] = filePath;
         largeImage.src = "assets/a4.jpg";
         largeText.innerText = "loading";
         console.log(savePath);
@@ -98,6 +131,7 @@ async function readFile(size) {
         largeText.innerText = "selected";
         largeCheck = true;
       } else {
+        filePathsImage[1] = filePath;
         smallImage.src = "assets/a4.jpg";
         smallText.innerText = "loading";
         await savePreviewImage(filePath, savePath);
@@ -107,6 +141,7 @@ async function readFile(size) {
       }
       imageSelectCount += 1;
       console.log(imageSelectCount);
+      console.log(filePathsImage);
     } else {
       if (size == "large") {
         largeText.innerText = "wrong";
@@ -252,25 +287,49 @@ overlay.addEventListener("click", () => {
   overlay.style.display = "none";
 });
 
-// DEBUG
-window.addEventListener("DOMContentLoaded", async () => {
-  await process();
-});
+// // DEBUG
+// window.addEventListener("DOMContentLoaded", async () => {
+//   await process();
+// });
 
-// Save as Image
-saveDb.addEventListener("click", function() {
-  const element = document.getElementById("resultDisplay"); // The element to capture
+saveDb.addEventListener("click", async function () {
+  try {
+    // Open Tauri save dialog to select the file path
+    const savePath = await save({
+      title: "Save Your Image",
+      defaultPath: "result.png",
+      filters: [
+        { name: "PNG Image", extensions: ["png"] },
+      ],
+    });
 
-  html2canvas(element).then(function(canvas) {
-    // Convert the canvas to an image (base64 format)
-    const imgData = canvas.toDataURL("image/png");
+    if (!savePath) {
+      console.log("Save operation was canceled.");
+      return;
+    }
 
-    // Create a link to download the image
-    const downloadLink = document.createElement("a");
-    downloadLink.href = imgData;
-    downloadLink.download = "screenshot.png"; // File name for download
+    // Capture the element and convert it to a canvas
+    const canvas = await html2canvas(document.getElementById("resultDisplay"), {
+      allowTaint: true,
+      useCORS: true,
+    });
 
-    // Trigger the download
-    downloadLink.click();
-  });
+    // Convert the canvas to base64 PNG
+    const imgData = canvas.toDataURL("image/png", 0.5);
+
+    // Convert Base64 to binary data (using TextDecoder and Uint8Array for compatibility)
+    const base64Data = imgData.split(",")[1];
+    const binaryData = new Uint8Array(
+      window.atob(base64Data)
+        .split("")
+        .map((char) => char.charCodeAt(0))
+    );
+
+    // Save the binary data to the selected path
+    await writeBinaryFile(savePath, binaryData);
+
+    console.log("Image saved successfully to:", savePath);
+  } catch (e) {
+    console.error("Error saving the image:", e);
+  }
 });

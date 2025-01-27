@@ -32,7 +32,7 @@ fn preview(file_path: String, save_path: String) {
 }
 
 #[tauri::command]
-fn processing(file_paths: Vec<String>, save_path: String) {
+fn processing(file_paths: Vec<String>, save_path: Vec<String>) {
     dbg!(&file_paths, &save_path);
     let large_field = file_paths[0].to_owned();
     let small_field = file_paths[1].to_owned();
@@ -94,7 +94,7 @@ fn processing(file_paths: Vec<String>, save_path: String) {
             let rotated_arr = rotate_array(theta_r, arr.clone());
             // Fine Lines in Rotated array
             let ypoints = fint_horizontal_line(rotated_arr.clone());
-            let xpoints = find_vertical_line(rotated_arr);
+            let xpoints = find_vertical_line(rotated_arr.clone());
             
             // // Small field
             match open_dcm_file(small_field) {
@@ -130,15 +130,18 @@ fn processing(file_paths: Vec<String>, save_path: String) {
                     let (results, results_pos) = length_line(points, mbs, &xpoints, &ypoints);
 
                     // Fine the circles
-                    let (q_arr, white_ts, (xc, yc)) = split_q_circle(&xpoints, &ypoints, rotated_arr2);
+                    let (cir_arr, q_arr, white_ts, (xc, yc)) = split_q_circle(&xpoints, &ypoints, rotated_arr2.clone());
                     let (farthest_q, farthest_point) = farthest_q(q_arr.clone(), white_ts);
                     let (x, y) = center_point(farthest_point, farthest_q, xc, yc);
                     dbg!(x, y, xc, yc);
                     let cir_distance = distance_pixel(x, y, xc as usize, yc as usize);
                     dbg!(results, results_pos);
                     // dbg!(center_p, res_xy, res_length, res_err);
-                    // let add_arr = add_arrays(arrays[0].clone(), arr2);
-                    // save_to_image_u8(add_arr, "c:/Users/alant/Desktop/added.jpg".to_string());
+                    let add_arr = add_arrays(rotated_arr, rotated_arr2);
+
+
+                    save_to_image_u8(add_arr, save_path[0].to_owned());
+                    save_to_image(cir_arr, save_path[1].to_owned());
                 },
                 None => {
 
@@ -151,7 +154,7 @@ fn processing(file_paths: Vec<String>, save_path: String) {
     }
 }
 
-fn arr_correction(mut arr: U16Array) -> [usize; 4] {
+fn arr_correction(arr: U16Array) -> [usize; 4] {
     // crop array as expect.
     // Find Test-Tool
     let shape = arr.shape();
@@ -202,14 +205,14 @@ fn arr_correction(mut arr: U16Array) -> [usize; 4] {
 
 
 /// add 2 array
-fn add_arrays(arr1: U8Array, arr2: U8Array) -> U8Array {
+fn add_arrays(arr1: U16Array, arr2: U16Array) -> U8Array {
     let nrows = arr1.nrows();
     let ncols = arr1.ncols();
-    let max_v = 510.0; // 255*2
+    let max_v = *arr1.max().unwrap() as f32 * 2.0; 
     let mut add_arr = vec![];
     for r in 0..nrows {
         for c in 0..ncols {
-            let add_v = arr1[(r, c)] as u16 + arr2[(r, c)] as u16;
+            let add_v = arr1[(r, c)] as u32 + arr2[(r, c)] as u32;
             let v_u8 = ((add_v as f32/max_v) * 255.0) as u8;
             add_arr.push(v_u8);
         }

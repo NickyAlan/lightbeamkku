@@ -698,7 +698,7 @@ fn percentile(arr: &Vec<f32>, q: f32) -> f32 {
 }
 
 
-pub fn split_q_circle(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> ([U16Array; 4], f32, (i32, i32)) {
+pub fn split_q_circle(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> (U16Array, [U16Array; 4], f32, (i32, i32)) {
     // split the circle into 4q 
     let one_cm_pixel = cm2pixel(ypoints, 0.9);
     let xx = [xpoints[1]-one_cm_pixel, xpoints[1]+one_cm_pixel];
@@ -731,7 +731,7 @@ pub fn split_q_circle(xpoints: &Vec<i32>, ypoints: &Vec<i32>, arr: U16Array) -> 
         yc+1.., xc+1..
     ]).to_owned();
     
-    ([top_left, top_right, bottom_left, bottom_right], white_ts, (xc, yc))
+    (circle_arr, [top_left, top_right, bottom_left, bottom_right], white_ts, (xc, yc))
 }
 
 fn find_center_circle_line(arr: U16Array) -> [i32; 2] {
