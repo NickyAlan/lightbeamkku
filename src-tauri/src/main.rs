@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
 use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line, boxs_posision, find_edges_pos, split_q_circle, farthest_q, center_point};
-use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array, find_edge_tool, find_mean, cast_type_arr, inv_lut, rectangle_edge_points, length_line, distance_pixel};
+use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array, find_edge_tool, find_mean, cast_type_arr, inv_lut, rectangle_edge_points, length_line, distance_pixel, calculate_angle};
 use std::collections::HashMap;
 use ndarray_stats::QuantileExt;
 use dicom::pixeldata::image::{flat, GrayImage};
@@ -32,7 +32,7 @@ fn preview(file_path: String, save_path: String) {
 }
 
 #[tauri::command]
-fn processing(file_paths: Vec<String>, save_path: Vec<String>) {
+fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [f32; 2], [[i32; 2]; 4], Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<[String; 1]>, Vec<i32>, Vec<i32>) {
     dbg!(&file_paths, &save_path);
     let large_field = file_paths[0].to_owned();
     let small_field = file_paths[1].to_owned();
@@ -127,29 +127,33 @@ fn processing(file_paths: Vec<String>, save_path: Vec<String>) {
                     // find 4 points(top-left[x, y], top-right, bottom_left, bottom-right) of the edges
                     let (points, mbs) = rectangle_edge_points(boxs_pos, edges_pos);
                     // // Result: left, right, top, bottom [x1, y1, x2, y2, length]
-                    let (results, results_pos) = length_line(points, mbs, &xpoints, &ypoints);
+                    let (results, results_pos, results_pos_text) = length_line(points, mbs, &xpoints, &ypoints);
 
                     // Fine the circles
                     let (cir_arr, q_arr, white_ts, (xc, yc)) = split_q_circle(&xpoints, &ypoints, rotated_arr2.clone());
                     let (farthest_q, farthest_point) = farthest_q(q_arr.clone(), white_ts);
                     let (x, y) = center_point(farthest_point, farthest_q, xc, yc);
                     dbg!(x, y, xc, yc);
-                    let cir_distance = distance_pixel(x, y, xc as usize, yc as usize);
-                    dbg!(results, results_pos);
+                    let cir_distance = pixel2cm(&ypoints, distance_pixel(x, y, xc as usize, yc as usize));
+                    let cir_angle = calculate_angle(cir_distance);
+                    // dbg!(results, results_pos, points);
                     // dbg!(center_p, res_xy, res_length, res_err);
                     let add_arr = add_arrays(rotated_arr, rotated_arr2);
 
+                    // save_to_image_u8(add_arr, "c:/Users/alant/Downloads/result.png".to_string());
 
                     save_to_image_u8(add_arr, save_path[0].to_owned());
                     save_to_image(cir_arr, save_path[1].to_owned());
+
+                    ([x, y, xc as usize, yc as usize], [cir_distance, cir_angle], points, results, results_pos, results_pos_text, xpoints, ypoints)
                 },
                 None => {
-
+                    ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]], vec![[String::from("")]], vec![0], vec![0])
                 }
             }
         }, 
         None => {
-            
+            ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]],  vec![[String::from("")]], vec![0], vec![0])
         }
     }
 }

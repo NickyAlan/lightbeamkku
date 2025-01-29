@@ -53,17 +53,39 @@
       >
       <div class="result-display" id="resultDisplay">
         <div class="imageDiv">
-          <img id="resultImage" src="assets/ex.png" />
+          <img id="resultImage" src="" />
+          <canvas id="canvasImage"></canvas>
         </div>
-        <div class="tableDiv">
-          <h1>Result Report</h1>
-          <p id="colRes">Collimator Alignment (Passed)</p>
+        <div class="tableDiv" id="tableDiv">
+          <!-- <h1>Result Report</h1>
+          <span id="sidInput"
+            ><p id="colRes">Collimator Alignment (Passed) with</p>
+            <p>SID:</p>
+            <input
+              type="number"
+              id="sidInputCm"
+              value="100"
+            />
+            <p>cm, </p>
+            <form id="radioForm">
+              <label class="radio-rectangle">
+                <input type="radio" name="option" value="1" checked/>
+                <span>1%</span>
+              </label>
+              <label class="radio-rectangle">
+                <input type="radio" name="option" value="2" />
+                <span>2%</span>
+              </label>
+            </form>
+            <p>criteria</p></span
+          >
           <table>
             <tr>
               <th>Position</th>
               <th>Length (cm)</th>
               <th>Error (cm)</th>
               <th>Error (%)</th>
+              <th>Most Error</th>
               <th>Status</th>
             </tr>
             <tr>
@@ -71,6 +93,7 @@
               <td>8.98</td>
               <td>0.02</td>
               <td>0.22</td>
+              <td>top-left</td>
               <td>passed</td>
             </tr>
             <tr>
@@ -78,6 +101,7 @@
               <td>9.00</td>
               <td>0.00</td>
               <td>0.00</td>
+              <td>top-left</td>
               <td>passed</td>
             </tr>
             <tr>
@@ -85,6 +109,7 @@
               <td>6.89</td>
               <td>0.11</td>
               <td>1.57</td>
+              <td>top-left</td>
               <td>passed</td>
             </tr>
             <tr>
@@ -92,6 +117,7 @@
               <td>7.00</td>
               <td>0.00</td>
               <td>0.00</td>
+              <td>top-left</td>
               <td>passed</td>
             </tr>
           </table>
@@ -101,18 +127,19 @@
               <p id="beamRes">Beam Aliagnment (Passed)</p>
               <table>
                 <tr>
-                  <th>1.5°</th>
-                  <th>3.0°</th>
+                  <th>Length (cm)</th>
+                  <th>Angle</th>
                   <th>Status</th>
                 </tr>
                 <tr>
-                  <td>passed</td>
-                  <td>passed</td>
+                  <td>22.3</td>
+                  <td>1.52°</td>
                   <td>passed</td>
                 </tr>
               </table>
               <div class="circleImage">
-                <img id="resultImageCir" src="assets/ex1.png"/>
+                <img id="resultImageCir" src="assets/c.jpg" />
+                <canvas id="canvasCir"></canvas>
               </div>
             </div>
 
@@ -137,7 +164,7 @@
                 /></span>
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -150,8 +177,7 @@
       <h2>Database</h2>
 
       <!-- Scrollable content wrapped in another div -->
-      <div class="popup-content">
-      </div>
+      <div class="popup-content"></div>
     </div>
   </body>
 </html>

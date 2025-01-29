@@ -151,7 +151,9 @@ pub fn find_theta(x1: i32, x2: i32, y1: i32, y2: i32) -> f64 {
 pub fn rotate_array(theta_r: f64, array: U16Array) -> U16Array {
     let h = array.nrows();
     let w = array.ncols();
-    let mut rotated = ndarray::Array::zeros((h as usize, w as usize));
+    let max_v = array.max().unwrap().clone() as u16;
+    // let mut rotated = ndarray::Array::zeros((h as usize, w as usize));
+    let mut rotated = Array::from_elem((h as usize, w as usize), max_v);
     let center_x = w as f64 / 2.;
     let center_y = h as f64 / 2.;
 
@@ -977,7 +979,7 @@ fn linear_equation(x1: i32, y1: i32, x2: i32, y2: i32) -> [f32; 2] {
     // prevent divided by zero
     let m;
     if x2 == x1 {
-        m = (y2 - y1) as f32 / 0.000000001;
+        m = (y2 - y1) as f32 ;
     } else {
         m = (y2 - y1) as f32 / (x2- x1) as f32
     }
@@ -1012,11 +1014,12 @@ pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) 
     ([[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]], [[ml, bl], [mr, br], [mt, bt], [mb, bb]])
 }
 
-pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>) {
+pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<[String; 1]>) {
     // find length from linear line(m, b)
     // return most err length, middle lenght
     let mut results = vec![];
     let mut results_pos = vec![];
+    let mut results_pos_text = vec![];
     let [[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]] = points;
     let [[ml, bl], [mr, br], [mt, bt], [mb, bb]] = mbs;
     
@@ -1035,10 +1038,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_left_t);
         left_length = 9.0 - max_err;
         results_pos.push([[top_xl, top_yl], [middle_left, ypoints[1]]]);
+        results_pos_text.push(["top-left".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_left_b);
         left_length = 9.0 - max_err;
         results_pos.push([[bottom_xl, bottom_yl], [middle_left, ypoints[1]]]);
+        results_pos_text.push(["bottom-left".to_string()]);
     }
     results.push([[left_length, -max_err], [middle_length, -middle_err]]);
 
@@ -1057,10 +1062,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_right_t);
         right_length = 9.0 - max_err;
         results_pos.push([[top_xr, top_yr], [middle_right, ypoints[1]]]);
+        results_pos_text.push(["top-right".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_right_b);
         right_length = 9.0 - max_err;
         results_pos.push([[bottom_xr, bottom_yr], [middle_right, ypoints[1]]]);
+        results_pos_text.push(["bottom-right".to_string()]);
     }
     results.push([[right_length, -max_err], [middle_length, -middle_err]]);
 
@@ -1079,10 +1086,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_top_l);
         top_length = 7.0 - max_err;
         results_pos.push([[top_xl, top_yl], [xpoints[1], middle_top]]);
+        results_pos_text.push(["top-left".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_top_r);
         top_length = 7.0 - max_err;
         results_pos.push([[top_xr, top_yr], [xpoints[1], middle_top]]);
+        results_pos_text.push(["top-right".to_string()]);
     }
     results.push([[top_length, -max_err], [middle_length, -middle_err]]);
 
@@ -1101,17 +1110,23 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_bottom_l);
         bottom_length = 7.0 - max_err;
         results_pos.push([[bottom_xl, bottom_yl], [xpoints[1], middle_bottom]]);
+        results_pos_text.push(["bottom-left".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_bottom_r);
         bottom_length = 7.0 - max_err;
         results_pos.push([[bottom_xr, bottom_yr], [xpoints[1], middle_bottom]]);
+        results_pos_text.push(["bottom-right".to_string()]);
     }
     results.push([[bottom_length, -max_err], [middle_length, -middle_err]]);
 
-    (results, results_pos)
+    (results, results_pos, results_pos_text)
 }
 
-pub fn distance_pixel(x1: usize, y1: usize, x2: usize, y2: usize) -> usize {
+pub fn distance_pixel(x1: usize, y1: usize, x2: usize, y2: usize) -> i32 {
     // find distance from 2 point return pixel distance
-    ((x2 as f32 - x1 as f32).powi(2) + (y2 as f32 - y1 as f32).powi(2)).sqrt().round() as usize
+    ((x2 as f32 - x1 as f32).powi(2) + (y2 as f32 - y1 as f32).powi(2)).sqrt().round() as i32
+}
+
+pub fn calculate_angle(distance: f32) -> f32 { 
+    distance*2.0
 }

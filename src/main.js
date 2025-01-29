@@ -21,8 +21,9 @@ const loadingDiv = document.querySelector(".loading");
 // show result
 const resultDiv = document.querySelector(".result");
 const backBtn = document.getElementById("backBtn");
-const resultImage = document.getElementById("resultImage");
-const resultImageCir = document.getElementById("resultImageCir");
+const tableDiv = document.getElementById("tableDiv");
+let sid = 100;
+let criteria = 1;
 
 // Database
 const openDb = document.getElementById("openDb");
@@ -40,26 +41,72 @@ async function process() {
   inputDiv.style.display = "none";
   loadingDiv.style.display = "flex";
 
-  // // save path
-  // const currentDateTime = new Date();
-  // const year = currentDateTime.getFullYear();
-  // const month = String(currentDateTime.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  // const day = String(currentDateTime.getDate()).padStart(2, "0");
-  // const hours = String(currentDateTime.getHours()).padStart(2, "0");
-  // const minutes = String(currentDateTime.getMinutes()).padStart(2, "0");
-  // const seconds = String(currentDateTime.getSeconds()).padStart(2, "0");
-  // const formattedDateTime = `${year}${month}${day}${hours}${minutes}${seconds}`;
+  // save path
+  const currentDateTime = new Date();
+  const year = currentDateTime.getFullYear();
+  const month = String(currentDateTime.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  const day = String(currentDateTime.getDate()).padStart(2, "0");
+  const hours = String(currentDateTime.getHours()).padStart(2, "0");
+  const minutes = String(currentDateTime.getMinutes()).padStart(2, "0");
+  const seconds = String(currentDateTime.getSeconds()).padStart(2, "0");
+  const formattedDateTime = `${year}${month}${day}${hours}${minutes}${seconds}`;
 
-  // const tempDir = await tempdir();
-  // const savePath = [
-  //   `${tempDir}${formattedDateTime}.jpg`,
-  //   `${tempDir}${formattedDateTime}+cir.jpg`,
-  // ];
+  const tempDir = await tempdir();
+  const savePath = [
+    `${tempDir}${formattedDateTime}.jpg`,
+    `${tempDir}${formattedDateTime}+cir.jpg`,
+  ];
 
-  // const res = await invoke("processing", {
-  //   filePaths: filePathsImage,
-  //   savePath: savePath,
-  // });
+  const res = await invoke("processing", {
+    filePaths: filePathsImage,
+    savePath: savePath,
+  });
+
+  // get results
+  const [x, y, h, k] = res[0];
+  const [cir_distance, cir_angle] = res[1];
+  const points = res[2];
+  const length = res[3];
+  const errCm = [
+    length[0][0][1].toFixed(3),
+    length[1][0][1].toFixed(3),
+    length[2][0][1].toFixed(3),
+    length[3][0][1].toFixed(3),
+  ];
+  const errPercentage = errPercent(errCm, sid, criteria);
+  const pos = res[4];
+  const max_err_pos = res[5];
+  const xpoints = res[6];
+  const ypoints = res[7];
+
+  // add result
+  console.log("start");
+  await updateTable(length, errCm, max_err_pos, savePath, errPercentage);
+  console.log("done");
+
+  // SID input
+  const inputField = document.getElementById("sidInputCm");
+  inputField.addEventListener("input", function (event) {
+    let input = event.target.value;
+    input = input.replace(/[^0-9]/g, "");
+    const num = parseInt(input, 10);
+    if (num < 1 || num > 300) {
+      input = input.slice(0, -1); // Remove the last character if the number is out of range
+    }
+    event.target.value = input;
+    sid = input;
+    updateErr(errCm, sid, criteria);
+  });
+  // criteria
+  document.getElementById("radioForm").addEventListener("change", function () {
+    const selectedOption = document.querySelector(
+      'input[name="option"]:checked'
+    ).value;
+    criteria = parseFloat(selectedOption);
+    console.log("cri:", criteria);
+    updateErr(errCm, sid, criteria);
+    console.log("Selected option:", selectedOption);
+  });
 
   // // DEBUG
   // // const res = await invoke("processing", {
@@ -67,11 +114,15 @@ async function process() {
   // //   savePath: "c:/Users/alant/Desktop/test-save-file.jpg",
   // // });
 
-  // // result screen
-  // resultImage.src = convertFileSrc(savePath[0]);
-  // resultImageCir.src = convertFileSrc(savePath[1]);
-  // loadingDiv.style.display = "none";
-  // resultDiv.style.display = "grid";
+  // result screen
+
+  setTimeout(() => {
+    circlePlot(x, y, h, k);
+    edgePlot(points);
+  }, 500);
+
+  loadingDiv.style.display = "none";
+  resultDiv.style.display = "grid";
 
   // DEBUG
   // setTimeout(() => {
@@ -79,6 +130,10 @@ async function process() {
   //   resultDiv.style.display = "grid";
   // }, 2000);
 }
+
+// DEBUG
+// inputDiv.style.display = "none";
+// resultDiv.style.display = "grid";
 
 async function savePreviewImage(filePath, savePath) {
   const res = await invoke("preview", {
@@ -108,6 +163,128 @@ function openFilefn() {
       })
       .catch(reject);
   });
+}
+
+async function updateTable(
+  length,
+  errCm,
+  max_err_pos,
+  savePath,
+  errPercentage
+) {
+  console.log(errPercentage);
+  tableDiv.innerHTML = `
+            <h1>Result Report</h1>
+          <span id="sidInput"
+            ><p id="colRes">Collimator Alignment (Passed) with</p>
+            <p>SID:</p>
+            <input
+              type="number"
+              id="sidInputCm"
+              value="100"
+            />
+            <p>cm, </p>
+            <form id="radioForm">
+              <label class="radio-rectangle">
+                <input type="radio" name="option" value="1" checked/>
+                <span>1%</span>
+              </label>
+              <label class="radio-rectangle">
+                <input type="radio" name="option" value="2" />
+                <span>2%</span>
+              </label>
+            </form>
+            <p>criteria</p></span
+          >
+          <table>
+            <tr>
+              <th>Position</th>
+              <th>Length (cm)</th>
+              <th>Error (cm)</th>
+              <th>Error (%)</th>
+              <th>Most Error</th>
+              <th>Status</th>
+            </tr>
+            <tr>
+              <td>X<sub>1</sub></td>
+              <td>${length[0][0][0].toFixed(3)}</td>
+              <td>${errCm[0]}</td>
+              <td id="err1">${errPercentage[0][0]}</td>
+              <td>${max_err_pos[0]}</td>
+              <td id="sta1">${errPercentage[0][1]}</td>
+            </tr>
+            <tr>
+              <td>X<sub>2</sub></td>
+              <td>${length[1][0][0].toFixed(3)}</td>
+              <td>${errCm[1]}</td>
+              <td id="err2">${errPercentage[1][0]}</td>
+              <td>${max_err_pos[1]}</td>
+              <td id="sta2">${errPercentage[1][1]}</td>
+            </tr>
+            <tr>
+              <td>Y<sub>1</sub></td>
+              <td>${length[2][0][0].toFixed(3)}</td>
+              <td>${errCm[2]}</td>
+              <td id="err3">${errPercentage[2][0]}</td>
+              <td>${max_err_pos[2]}</td>
+              <td id="sta3">${errPercentage[2][1]}</td>
+            </tr>
+            <tr>
+              <td>Y<sub>2</sub></td>
+              <td>${length[3][0][0].toFixed(3)}</td>
+              <td>${errCm[3]}</td>
+              <td id="err4">${errPercentage[3][0]}</td>
+              <td>${max_err_pos[3]}</td>
+              <td id="sta4">${errPercentage[3][1]}</td>
+            </tr>
+          </table>
+
+          <div class="lower-res">
+            <div class="left-res">
+              <p id="beamRes">Beam Aliagnment (Passed)</p>
+              <table>
+                <tr>
+                  <th>Length (cm)</th>
+                  <th>Angle</th>
+                  <th>Status</th>
+                </tr>
+                <tr>
+                  <td>22.3</td>
+                  <td>1.52°</td>
+                  <td>passed</td>
+                </tr>
+              </table>
+              <div class="circleImage">
+                <img id="resultImageCir" src="${convertFileSrc(savePath[1])}" />
+                <canvas id="canvasCir"></canvas>
+              </div>
+            </div>
+
+            <div class="right-res">
+              <div class="detectorDetails">
+                <h2>Information</h2>
+                <p>Detector type: test</p>
+                <p>Detector id: 102424</p>
+                <p>Bit depth: 16</p>
+                <p>Matrix size: 2000x2000</p>
+                <span
+                  ><p>Name:</p>
+                  <input type="text"
+                /></span>
+                <span
+                  ><p>Hospital:</p>
+                  <input type="text"
+                /></span>
+                <span
+                  ><p>Room:</p>
+                  <input type="text"
+                /></span>
+              </div>
+            </div>
+          </div>
+  `;
+
+  document.getElementById("resultImage").src = convertFileSrc(savePath[0]);
 }
 
 async function readFile(size) {
@@ -207,14 +384,15 @@ async function saveToFolder() {
     await createDir(dataDir, { recursive: true });
   }
   // save file
-  let folderName = "3";
+  let folderName = "test-folder";
   let folderPath = `${dataDir}\\${folderName}`;
   const folderExists = await exists(folderPath);
   if (!folderExists) {
     await createDir(folderPath, { recursive: true });
   }
 
-  console.log("App Data Directory:", dataDir);
+  console.log("App Data Directory:", folderPath);
+  // appName.textContent = folderPath;
   // await message('Save Complete', 'Sucessfully Saved');
 }
 
@@ -232,6 +410,11 @@ backBtn.addEventListener("click", (event) => {
   event.preventDefault();
   resultDiv.style.display = "none";
   inputDiv.style.display = "grid";
+
+  // clear canvas
+  clearCanvasById("canvasImage");
+  sid = 100;
+  criteria = 1;
 });
 
 // Database Pop-Up
@@ -287,9 +470,19 @@ overlay.addEventListener("click", () => {
   overlay.style.display = "none";
 });
 
-// // DEBUG
+// DEBUG
 // window.addEventListener("DOMContentLoaded", async () => {
-//   await process();
+//   // await process();
+//   // saveToFolder();
+//   const [x, y, h, k] = [55, 46, 60, 60];
+//   const points = [
+//     [227, 250],
+//     [1381, 235],
+//     [237, 1060],
+//     [1387, 1045],
+//   ];
+//   // circlePlot(x, y, h, k);
+//   // edgePlot(points);
 // });
 
 saveDb.addEventListener("click", async function () {
@@ -298,9 +491,7 @@ saveDb.addEventListener("click", async function () {
     const savePath = await save({
       title: "Save Your Image",
       defaultPath: "result.png",
-      filters: [
-        { name: "PNG Image", extensions: ["png"] },
-      ],
+      filters: [{ name: "PNG Image", extensions: ["png"] }],
     });
 
     if (!savePath) {
@@ -312,15 +503,17 @@ saveDb.addEventListener("click", async function () {
     const canvas = await html2canvas(document.getElementById("resultDisplay"), {
       allowTaint: true,
       useCORS: true,
+      scale: 3, // Scale factor for higher quality
     });
 
     // Convert the canvas to base64 PNG
-    const imgData = canvas.toDataURL("image/png", 0.5);
+    const imgData = canvas.toDataURL("image/png", 1.0);
 
     // Convert Base64 to binary data (using TextDecoder and Uint8Array for compatibility)
     const base64Data = imgData.split(",")[1];
     const binaryData = new Uint8Array(
-      window.atob(base64Data)
+      window
+        .atob(base64Data)
         .split("")
         .map((char) => char.charCodeAt(0))
     );
@@ -333,3 +526,173 @@ saveDb.addEventListener("click", async function () {
     console.error("Error saving the image:", e);
   }
 });
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function circlePlot(x, y, h, k) {
+  console.log("run c");
+  const image = document.getElementById("resultImageCir");
+  console.log(image.src);
+  const canvas = document.getElementById("canvasCir");
+  const ctx = canvas.getContext("2d");
+
+  const W = image.naturalWidth;
+  const H = image.naturalHeight;
+  const NW = image.offsetWidth;
+  const NH = image.offsetHeight;
+  console.log(W, H, NW, NH);
+  // adjust ratio
+  const RW = NW / W;
+  const RH = NH / H;
+  canvas.width = NW;
+  canvas.height = NH;
+
+  // 2 points
+  const color = "blue";
+  const dotX = Math.round(h * RW);
+  const dotY = Math.round(k * RH);
+  const dotRadius = 3;
+
+  const devX = Math.round(x * RW);
+  const devY = Math.round(y * RW);
+
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
+  await sleep(500); // Pause for 500ms between points
+  ctx.arc(devX, devY, dotRadius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // line
+  ctx.lineWidth = 2; // Thickness of the line
+  ctx.strokeStyle = color; // Color of the line
+
+  // Draw the dashed line
+  ctx.beginPath();
+  await sleep(500); // Pause for 500ms between points
+  ctx.moveTo(dotX, dotY); // Starting point (x, y)
+  ctx.lineTo(devX, devY); // Ending point (x, y)
+  ctx.stroke();
+}
+
+async function edgePlot(points) {
+  // points; [[top-left x, top-left y], ...]
+  console.log("run i");
+  let [
+    [top_xl, top_yl],
+    [top_xr, top_yr],
+    [bottom_xl, bottom_yl],
+    [bottom_xr, bottom_yr],
+  ] = points;
+
+  const image = document.getElementById("resultImage");
+  const canvas = document.getElementById("canvasImage");
+  const ctx = canvas.getContext("2d");
+
+  const W = image.naturalWidth;
+  const H = image.naturalHeight;
+  const NW = image.offsetWidth;
+  const NH = image.offsetHeight;
+  console.log(W, H, NW, NH);
+
+  // adjust ratio
+  const RW = NW / W;
+  const RH = NH / H;
+  canvas.width = NW;
+  canvas.height = NH;
+
+  const color = "yellow";
+
+  top_xl = Math.round(top_xl * RW);
+  top_yl = Math.round(top_yl * RH);
+  top_xr = Math.round(top_xr * RW);
+  top_yr = Math.round(top_yr * RH);
+  bottom_xl = Math.round(bottom_xl * RW);
+  bottom_yl = Math.round(bottom_yl * RH);
+  bottom_xr = Math.round(bottom_xr * RW);
+  bottom_yr = Math.round(bottom_yr * RH);
+
+  const p = [
+    [top_xl, top_yl],
+    [bottom_xl, bottom_yl],
+    [bottom_xr, bottom_yr],
+    [top_xr, top_yr],
+  ];
+
+  ctx.beginPath(); // Start a new path
+  ctx.strokeStyle = "yellow"; // Set the line color to yellow
+  ctx.lineWidth = 2; // Optional: Set line thickness
+  for (let i = 0; i < p.length; i++) {
+    const [x, y] = p[i];
+    if (i === 0) {
+      // Move to the first point without drawing
+      ctx.moveTo(x, y);
+    } else {
+      // Draw a line to the next point
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke(); // Render the current line segment
+    await sleep(500); // Pause for 500ms between points
+  }
+  // Close the rectangle
+  ctx.closePath();
+  ctx.stroke();
+
+  // ctx.beginPath();
+  // ctx.moveTo(top_xl, top_yl);
+  // ctx.lineTo(bottom_xl, bottom_yl);
+  // ctx.lineTo(bottom_xr, bottom_yr);
+  // ctx.lineTo(top_xr, top_yr);
+  // ctx.lineWidth = 2;
+  // ctx.strokeStyle = color;
+  // ctx.closePath();
+  // ctx.stroke();
+}
+
+function errPercent(errCm, sid, criteria) {
+  let errP = [];
+  for (let i = 0; i < errCm.length; i++) {
+    let percent = (Math.abs(parseFloat(errCm[i])) / sid) * 100;
+    let status = "passed";
+    if (percent > criteria) {
+      status = "failed";
+    }
+    if (percent == "Infinity") {
+      errP.push(["-", status]);
+    } else {
+      errP.push([percent.toFixed(3), status]);
+    }
+  }
+  return errP;
+}
+
+function clearCanvasById(canvasId) {
+  console.log("clear canvas");
+  const canvas = document.getElementById(canvasId); // Get the canvas by its ID
+  const ctx = canvas.getContext("2d"); // Get the 2D context of the canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the entire canvas
+}
+
+function updateErr(errCm, sid, criteria) {
+  console.log("update");
+  const errPercentage = errPercent(errCm, sid, criteria);
+  console.log(errPercentage);
+  const errP = [
+    document.getElementById("err1"),
+    document.getElementById("err2"),
+    document.getElementById("err3"),
+    document.getElementById("err4"),
+  ];
+  const statuss = [
+    document.getElementById("sta1"),
+    document.getElementById("sta2"),
+    document.getElementById("sta3"),
+    document.getElementById("sta4"),
+  ];
+  for (let i = 0; i < errPercentage.length; i++) {
+    errP[i].textContent = errPercentage[i][0];
+    statuss[i].textContent = errPercentage[i][1];
+  }
+}
