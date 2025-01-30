@@ -65,6 +65,10 @@ async function process() {
   // get results
   const [x, y, h, k] = res[0];
   const [cir_distance, cir_angle] = res[1];
+  let cir_status = "passed";
+  if (cir_angle > 3.0) {
+    cir_status = "failed";
+  }
   const points = res[2];
   const length = res[3];
   const errCm = [
@@ -78,10 +82,28 @@ async function process() {
   const max_err_pos = res[5];
   const xpoints = res[6];
   const ypoints = res[7];
+  const info = res[8];
+
+  // details
+  let pixel_size_sup = "-";
+  if (info[6] != " - ") {
+    pixel_size_sup = `${info[6]}<sup>2</sup>`;
+  }
 
   // add result
   console.log("start");
-  await updateTable(length, errCm, max_err_pos, savePath, errPercentage);
+  await updateTable(
+    length,
+    errCm,
+    max_err_pos,
+    savePath,
+    errPercentage,
+    cir_distance,
+    cir_angle,
+    cir_status,
+    info,
+    pixel_size_sup
+  );
   console.log("done");
 
   // SID input
@@ -118,8 +140,8 @@ async function process() {
 
   setTimeout(() => {
     circlePlot(x, y, h, k);
-    edgePlot(points);
-  }, 500);
+    edgePlot(points, xpoints, ypoints);
+  }, 50);
 
   loadingDiv.style.display = "none";
   resultDiv.style.display = "grid";
@@ -170,13 +192,18 @@ async function updateTable(
   errCm,
   max_err_pos,
   savePath,
-  errPercentage
+  errPercentage,
+  cir_distance,
+  cir_angle,
+  cir_status,
+  info,
+  pixel_size_sup
 ) {
-  console.log(errPercentage);
+  console.log(cir_distance, cir_angle, cir_status);
   tableDiv.innerHTML = `
             <h1>Result Report</h1>
           <span id="sidInput"
-            ><p id="colRes">Collimator Alignment (Passed) with</p>
+            ><p id="colRes">Collimator Alignment with</p>
             <p>SID:</p>
             <input
               type="number"
@@ -241,7 +268,7 @@ async function updateTable(
 
           <div class="lower-res">
             <div class="left-res">
-              <p id="beamRes">Beam Aliagnment (Passed)</p>
+              <p id="beamRes">Beam Aliagnment</p>
               <table>
                 <tr>
                   <th>Length (cm)</th>
@@ -249,9 +276,9 @@ async function updateTable(
                   <th>Status</th>
                 </tr>
                 <tr>
-                  <td>22.3</td>
-                  <td>1.52°</td>
-                  <td>passed</td>
+                  <td>${cir_distance.toFixed(3)}</td>
+                  <td>${cir_angle.toFixed(3)}°</td>
+                  <td>${cir_status}</td>
                 </tr>
               </table>
               <div class="circleImage">
@@ -263,22 +290,19 @@ async function updateTable(
             <div class="right-res">
               <div class="detectorDetails">
                 <h2>Information</h2>
-                <p>Detector type: test</p>
-                <p>Detector id: 102424</p>
-                <p>Bit depth: 16</p>
-                <p>Matrix size: 2000x2000</p>
+                <p>Hospital: ${info[0]}</p>
+                <p>Manufacturer: ${info[1]}</p>
+                <p>Institution Address: ${info[2]}</p>
+                <p>Acquisition Date: ${info[3]}</p>
+                <p>Detector Type: ${info[4]}</p>
+                <p>Detector ID: ${info[5]}</p>
+                <p>Pixel Size: ${pixel_size_sup}</p>
+                <p>Matrix Size: ${info[7]}</p>
+                <p>Bit Depth: ${info[8]}</p>
                 <span
-                  ><p>Name:</p>
-                  <input type="text"
-                /></span>
-                <span
-                  ><p>Hospital:</p>
-                  <input type="text"
-                /></span>
-                <span
-                  ><p>Room:</p>
-                  <input type="text"
-                /></span>
+                  ><p>Note:</p>
+                  <textarea rows="4"></textarea>
+                </span>
               </div>
             </div>
           </div>
@@ -300,7 +324,7 @@ async function readFile(size) {
 
       if (size == "large") {
         filePathsImage[0] = filePath;
-        largeImage.src = "assets/a4.jpg";
+        largeImage.src = "assets/loadLarge0.png";
         largeText.innerText = "loading";
         console.log(savePath);
         await savePreviewImage(filePath, savePath);
@@ -309,7 +333,7 @@ async function readFile(size) {
         largeCheck = true;
       } else {
         filePathsImage[1] = filePath;
-        smallImage.src = "assets/a4.jpg";
+        smallImage.src = "assets/loadFit0.png";
         smallText.innerText = "loading";
         await savePreviewImage(filePath, savePath);
         smallImage.src = convertFileSrc(savePath);
@@ -322,11 +346,11 @@ async function readFile(size) {
     } else {
       if (size == "large") {
         largeText.innerText = "wrong";
-        largeImage.src = "assets/t4.jpg";
+        largeImage.src = "assets/loadLarge.png";
         largeCheck = false;
       } else {
         smallText.innerText = "wrong";
-        smallImage.src = "assets/t4.jpg";
+        smallImage.src = "assets/loadFit.png";
         smallCheck = false;
       }
     }
@@ -503,7 +527,7 @@ saveDb.addEventListener("click", async function () {
     const canvas = await html2canvas(document.getElementById("resultDisplay"), {
       allowTaint: true,
       useCORS: true,
-      scale: 3, // Scale factor for higher quality
+      scale: 2, // Scale factor for higher quality
     });
 
     // Convert the canvas to base64 PNG
@@ -560,7 +584,7 @@ async function circlePlot(x, y, h, k) {
 
   ctx.beginPath();
   ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
-  await sleep(500); // Pause for 500ms between points
+  // await sleep(500); // Pause for 500ms between points
   ctx.arc(devX, devY, dotRadius, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
@@ -571,13 +595,13 @@ async function circlePlot(x, y, h, k) {
 
   // Draw the dashed line
   ctx.beginPath();
-  await sleep(500); // Pause for 500ms between points
+  // await sleep(500); // Pause for 500ms between points
   ctx.moveTo(dotX, dotY); // Starting point (x, y)
   ctx.lineTo(devX, devY); // Ending point (x, y)
   ctx.stroke();
 }
 
-async function edgePlot(points) {
+async function edgePlot(points, xpoints, ypoints) {
   // points; [[top-left x, top-left y], ...]
   console.log("run i");
   let [
@@ -614,41 +638,72 @@ async function edgePlot(points) {
   bottom_xr = Math.round(bottom_xr * RW);
   bottom_yr = Math.round(bottom_yr * RH);
 
-  const p = [
-    [top_xl, top_yl],
-    [bottom_xl, bottom_yl],
-    [bottom_xr, bottom_yr],
-    [top_xr, top_yr],
-  ];
+  // const p = [
+  //   [top_xl, top_yl],
+  //   [bottom_xl, bottom_yl],
+  //   [bottom_xr, bottom_yr],
+  //   [top_xr, top_yr],
+  // ];
 
-  ctx.beginPath(); // Start a new path
-  ctx.strokeStyle = "yellow"; // Set the line color to yellow
-  ctx.lineWidth = 2; // Optional: Set line thickness
-  for (let i = 0; i < p.length; i++) {
-    const [x, y] = p[i];
-    if (i === 0) {
-      // Move to the first point without drawing
-      ctx.moveTo(x, y);
-    } else {
-      // Draw a line to the next point
-      ctx.lineTo(x, y);
-    }
-    ctx.stroke(); // Render the current line segment
-    await sleep(500); // Pause for 500ms between points
-  }
-  // Close the rectangle
-  ctx.closePath();
-  ctx.stroke();
-
-  // ctx.beginPath();
-  // ctx.moveTo(top_xl, top_yl);
-  // ctx.lineTo(bottom_xl, bottom_yl);
-  // ctx.lineTo(bottom_xr, bottom_yr);
-  // ctx.lineTo(top_xr, top_yr);
-  // ctx.lineWidth = 2;
-  // ctx.strokeStyle = color;
+  // ctx.beginPath(); // Start a new path
+  // ctx.strokeStyle = color; // Set the line color to yellow
+  // ctx.lineWidth = 2; // Optional: Set line thickness
+  // for (let i = 0; i < p.length; i++) {
+  //   const [x, y] = p[i];
+  //   if (i === 0) {
+  //     // Move to the first point without drawing
+  //     ctx.moveTo(x, y);
+  //   } else {
+  //     // Draw a line to the next point
+  //     ctx.lineTo(x, y);
+  //   }
+  //   ctx.stroke(); // Render the current line segment
+  //   await sleep(500); // Pause for 500ms between points
+  // }
+  // // Close the rectangle
   // ctx.closePath();
   // ctx.stroke();
+  const offset = 50;
+  let x1Pos = [
+    (xpoints[0] * 3) / 4 + (xpoints[1] * 1) / 4,
+    ypoints[1] - offset,
+  ];
+  x1Pos = [Math.round(x1Pos[0] * RW), Math.round(x1Pos[1] * RH)];
+  let x2Pos = [
+    (xpoints[1] * 1) / 4 + (xpoints[2] * 3) / 4,
+    ypoints[1] - offset,
+  ];
+  x2Pos = [Math.round(x2Pos[0] * RW), Math.round(x2Pos[1] * RH)];
+  let y1Pos = [
+    xpoints[1] + offset,
+    (ypoints[0] * 3) / 4 + (ypoints[1] * 1) / 4,
+  ];
+  y1Pos = [Math.round(y1Pos[0] * RW), Math.round(y1Pos[1] * RH)];
+  let y2Pos = [
+    xpoints[1] + offset,
+    (ypoints[1] * 1) / 4 + (ypoints[2] * 3) / 4,
+  ];
+  y2Pos = [Math.round(y2Pos[0] * RW), Math.round(y2Pos[1] * RH)];
+
+  // text
+  ctx.font = "16px Arial";
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  // Draw text on the canvas
+  ctx.fillText("X1", x1Pos[0], x1Pos[1]);
+  ctx.fillText("X2", x2Pos[0], x2Pos[1]);
+  ctx.fillText("Y1", y1Pos[0], y1Pos[1]);
+  ctx.fillText("Y2", y2Pos[0], y2Pos[1]);
+
+  ctx.beginPath();
+  ctx.moveTo(top_xl, top_yl);
+  ctx.lineTo(bottom_xl, bottom_yl);
+  ctx.lineTo(bottom_xr, bottom_yr);
+  ctx.lineTo(top_xr, top_yr);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  ctx.closePath();
+  ctx.stroke();
 }
 
 function errPercent(errCm, sid, criteria) {

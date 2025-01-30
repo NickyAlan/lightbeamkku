@@ -352,12 +352,11 @@ tr:nth-child(odd) {
   margin-top: 10px;
 }
 
-.detectorDetails {
+/* .detectorDetails {
   /* margin-top: 20px; */
-  background: skyblue;
-}
-
-.detectorDetails span {
+/* background: skyblue; */
+/* } */
+*/ .detectorDetails span {
   width: 100%;
   display: flex;
 }
@@ -366,13 +365,20 @@ tr:nth-child(odd) {
   font-size: 18px;
 }
 
-.detectorDetails input {
+textarea {
+  padding: 2px;
+  width: 100%; /* Set the width to 20 characters */
+  font-size: 18px;
+  resize: none; /* Optional: Disable resizing */
+}
+
+/* .detectorDetails input {
   border: none;
   border-bottom: 1px solid black;
   outline: none;
   padding: 0 1ch;
   width: 100%;
-}
+} */
 
 /* Database */
 /* Pop-up Styles */

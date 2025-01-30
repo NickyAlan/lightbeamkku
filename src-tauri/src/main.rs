@@ -32,7 +32,7 @@ fn preview(file_path: String, save_path: String) {
 }
 
 #[tauri::command]
-fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [f32; 2], [[i32; 2]; 4], Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<[String; 1]>, Vec<i32>, Vec<i32>) {
+fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [f32; 2], [[i32; 2]; 4], Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<[String; 1]>, Vec<i32>, Vec<i32>, Vec<String>) {
     dbg!(&file_paths, &save_path);
     let large_field = file_paths[0].to_owned();
     let small_field = file_paths[1].to_owned();
@@ -46,7 +46,29 @@ fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [
             
             // Detector details
             let hospital = get_detail(&obj, tags::INSTITUTION_NAME);
-            // ...
+            let manufacturer = get_detail(&obj, tags::MANUFACTURER);
+            let acquisition_date = get_detail(&obj, tags::ACQUISITION_DATE);
+            let detector_type = get_detail(&obj, tags::DETECTOR_TYPE);
+            let detector_id = get_detail(&obj, tags::DETECTOR_ID);
+            let modality = get_detail(&obj, tags::MODALITY);
+            let mut machine = " - ".to_string();
+            if manufacturer != " - ".to_string() {
+                machine = format!("{} [{}]", manufacturer, modality);
+            } 
+            let address = get_detail(&obj, tags::INSTITUTION_ADDRESS);
+            let spatial_resolution = get_detail(&obj, tags::SPATIAL_RESOLUTION);
+            let mut pixel_size = " - ".to_string();
+            if spatial_resolution != " - ".to_string() {
+                pixel_size = format!("{}x{} mm", spatial_resolution, spatial_resolution);
+            }
+            let rows_ = get_detail(&obj, tags::ROWS);
+            let cols_ = get_detail(&obj, tags::COLUMNS);
+            let mut matrix_size = format!("");
+            if (rows_ != " - ".to_string()) && (cols_ != " - ".to_string()) {
+                matrix_size = format!("{}x{}", rows_, cols_);
+            } 
+            let bit_depth = get_detail(&obj, tags::BITS_STORED);
+            let details = vec![hospital, machine, address, acquisition_date, detector_type, detector_id, pixel_size, matrix_size, bit_depth];
 
             // Find Test-Tool
             let [row1, row2, col1, col2] = arr_correction(arr.clone());
@@ -145,15 +167,15 @@ fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [
                     save_to_image_u8(add_arr, save_path[0].to_owned());
                     save_to_image(cir_arr, save_path[1].to_owned());
 
-                    ([x, y, xc as usize, yc as usize], [cir_distance, cir_angle], points, results, results_pos, results_pos_text, xpoints, ypoints)
+                    ([x, y, xc as usize, yc as usize], [cir_distance, cir_angle], points, results, results_pos, results_pos_text, xpoints, ypoints, details)
                 },
                 None => {
-                    ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]], vec![[String::from("")]], vec![0], vec![0])
+                    ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]], vec![[String::from("")]], vec![0], vec![0], vec![String::from("")])
                 }
             }
         }, 
         None => {
-            ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]],  vec![[String::from("")]], vec![0], vec![0])
+            ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]],  vec![[String::from("")]], vec![0], vec![0], vec![String::from("")])
         }
     }
 }
