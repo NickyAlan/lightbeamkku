@@ -31,6 +31,8 @@ const saveDb = document.getElementById("saveDb");
 
 let filePathsImage = ["", ""];
 let imageSelectCount = 0;
+let fileCheckInfoL = [0, 0, 0, 0];
+let fileCheckInfoF = [0, 0, 0, 0];
 let largeCheck = false;
 let smallCheck = false;
 
@@ -64,10 +66,12 @@ async function process() {
 
   // get results
   const [x, y, h, k] = res[0];
-  const [cir_distance, cir_angle] = res[1];
+  let [cir_distance, cir_angle] = res[1];
   let cir_status = "passed";
+  let cir_color = "blue";
   if (cir_angle > 3.0) {
     cir_status = "failed";
+    cir_color = "red";
   }
   const points = res[2];
   const length = res[3];
@@ -77,7 +81,7 @@ async function process() {
     length[2][0][1].toFixed(3),
     length[3][0][1].toFixed(3),
   ];
-  const errPercentage = errPercent(errCm, sid, criteria);
+  const [errPercentage, colStatus] = errPercent(errCm, sid, criteria);
   const pos = res[4];
   const max_err_pos = res[5];
   const xpoints = res[6];
@@ -102,9 +106,10 @@ async function process() {
     cir_angle,
     cir_status,
     info,
-    pixel_size_sup
+    pixel_size_sup,
+    colStatus,
+    cir_color
   );
-  console.log("done");
 
   // SID input
   const inputField = document.getElementById("sidInputCm");
@@ -118,6 +123,7 @@ async function process() {
     event.target.value = input;
     sid = input;
     updateErr(errCm, sid, criteria);
+    updateCir(cir_distance, parseFloat(sid));
   });
   // criteria
   document.getElementById("radioForm").addEventListener("change", function () {
@@ -157,11 +163,20 @@ async function process() {
 // inputDiv.style.display = "none";
 // resultDiv.style.display = "grid";
 
-async function savePreviewImage(filePath, savePath) {
+async function savePreviewImage(filePath, savePath, isLarge) {
   const res = await invoke("preview", {
     filePath: filePath,
     savePath: savePath,
   });
+  if (isLarge) {
+    for (let i = 0; i < 4; i++) {
+      fileCheckInfoL[i] = res[i];
+    }
+  } else {
+    for (let i = 0; i < 4; i++) {
+      fileCheckInfoF[i] = res[i];
+    }
+  }
 }
 
 function openFilefn() {
@@ -197,14 +212,16 @@ async function updateTable(
   cir_angle,
   cir_status,
   info,
-  pixel_size_sup
+  pixel_size_sup,
+  colStatus,
+  cir_color
 ) {
   console.log(cir_distance, cir_angle, cir_status);
   tableDiv.innerHTML = `
             <h1>Result Report</h1>
           <span id="sidInput"
-            ><p id="colRes">Collimator Alignment with</p>
-            <p>SID:</p>
+            ><p id="colRes">Collimator Alignment <p id="colStatus">(${colStatus})</p></p>
+            <p>— SID:</p>
             <input
               type="number"
               id="sidInputCm"
@@ -268,7 +285,7 @@ async function updateTable(
 
           <div class="lower-res">
             <div class="left-res">
-              <p id="beamRes">Beam Aliagnment</p>
+              <span id="beamRes">Beam Aliagnment <p id="cirStatusC">(${cir_status})</p></span>
               <table>
                 <tr>
                   <th>Length (cm)</th>
@@ -277,8 +294,8 @@ async function updateTable(
                 </tr>
                 <tr>
                   <td>${cir_distance.toFixed(3)}</td>
-                  <td>${cir_angle.toFixed(3)}°</td>
-                  <td>${cir_status}</td>
+                  <td id="cirAngle" >${cir_angle.toFixed(3)}°</td>
+                  <td id="cirStatus" >${cir_status}</td>
                 </tr>
               </table>
               <div class="circleImage">
@@ -299,7 +316,7 @@ async function updateTable(
                 <p>Pixel Size: ${pixel_size_sup}</p>
                 <p>Matrix Size: ${info[7]}</p>
                 <p>Bit Depth: ${info[8]}</p>
-                <span
+                <span class="note"
                   ><p>Note:</p>
                   <textarea rows="4"></textarea>
                 </span>
@@ -309,6 +326,9 @@ async function updateTable(
   `;
 
   document.getElementById("resultImage").src = convertFileSrc(savePath[0]);
+  document.getElementById("cirStatusC").style.color = cir_color;
+
+  updateColorCol(colStatus);
 }
 
 async function readFile(size) {
@@ -316,7 +336,8 @@ async function readFile(size) {
   if (filePath) {
     const lowerCasePath = filePath.toLowerCase();
     const split_ = lowerCasePath.split("\\");
-    const file_type = split_[split_.length - 1].split(".")[1];
+    const length = split_.length;
+    const file_type = split_[length - 1].split(".")[1];
 
     if (!file_type || file_type == "dcm" || file_type == "dicom") {
       const tempDir = await tempdir();
@@ -324,20 +345,21 @@ async function readFile(size) {
 
       if (size == "large") {
         filePathsImage[0] = filePath;
-        largeImage.src = "assets/loadLarge0.png";
+        largeImage.src = "assets/largeload.png";
         largeText.innerText = "loading";
         console.log(savePath);
-        await savePreviewImage(filePath, savePath);
+        await savePreviewImage(filePath, savePath, true);
+        console.log(filePath.split("\\"));
         largeImage.src = convertFileSrc(savePath);
-        largeText.innerText = "selected";
+        largeText.innerText = `../${split_[length - 2]}/${split_[length - 1]}`;
         largeCheck = true;
       } else {
         filePathsImage[1] = filePath;
-        smallImage.src = "assets/loadFit0.png";
+        smallImage.src = "assets/fitload.png";
         smallText.innerText = "loading";
-        await savePreviewImage(filePath, savePath);
+        await savePreviewImage(filePath, savePath, false);
         smallImage.src = convertFileSrc(savePath);
-        smallText.innerText = "selected";
+        smallText.innerText = `../${split_[length - 2]}/${split_[length - 1]}`;
         smallCheck = true;
       }
       imageSelectCount += 1;
@@ -345,12 +367,12 @@ async function readFile(size) {
       console.log(filePathsImage);
     } else {
       if (size == "large") {
-        largeText.innerText = "wrong";
-        largeImage.src = "assets/loadLarge.png";
+        largeText.innerText = `../${split_[length - 2]}/${split_[length - 1]}`;
+        largeImage.src = "assets/wrong.png";
         largeCheck = false;
       } else {
-        smallText.innerText = "wrong";
-        smallImage.src = "assets/loadFit.png";
+        smallText.innerText = `../${split_[length - 2]}/${split_[length - 1]}`;
+        smallImage.src = "assets/wrong.png";
         smallCheck = false;
       }
     }
@@ -358,7 +380,15 @@ async function readFile(size) {
   // update process button
   console.log(processBtn.style.cursor);
   if (largeCheck && smallCheck) {
+    // check is same detector
+    console.log(fileCheckInfoL, fileCheckInfoF);
+    // check is same file
+    if (filePathsImage[0] == filePathsImage[1]) {
+      console.log("same image");
+    }
+
     console.log(largeCheck, smallCheck);
+
     processBtn.style.background = "blue";
     processBtn.style.color = "white";
     processBtn.style.cursor = "pointer";
@@ -708,11 +738,13 @@ async function edgePlot(points, xpoints, ypoints) {
 
 function errPercent(errCm, sid, criteria) {
   let errP = [];
+  let colStatus = "passed";
   for (let i = 0; i < errCm.length; i++) {
     let percent = (Math.abs(parseFloat(errCm[i])) / sid) * 100;
     let status = "passed";
     if (percent > criteria) {
       status = "failed";
+      colStatus = "failed";
     }
     if (percent == "Infinity") {
       errP.push(["-", status]);
@@ -720,7 +752,8 @@ function errPercent(errCm, sid, criteria) {
       errP.push([percent.toFixed(3), status]);
     }
   }
-  return errP;
+
+  return [errP, colStatus];
 }
 
 function clearCanvasById(canvasId) {
@@ -732,7 +765,7 @@ function clearCanvasById(canvasId) {
 
 function updateErr(errCm, sid, criteria) {
   console.log("update");
-  const errPercentage = errPercent(errCm, sid, criteria);
+  const [errPercentage, colStatus] = errPercent(errCm, sid, criteria);
   console.log(errPercentage);
   const errP = [
     document.getElementById("err1"),
@@ -750,4 +783,44 @@ function updateErr(errCm, sid, criteria) {
     errP[i].textContent = errPercentage[i][0];
     statuss[i].textContent = errPercentage[i][1];
   }
+
+  document.getElementById("colStatus").textContent = `(${colStatus})`;
+  updateColorCol(colStatus);
+}
+
+function updateCir(cir_distance, sid) {
+  const cirAngleElm = document.getElementById("cirAngle");
+  if (!isNaN(sid)) {
+    const cirStatusElm = document.getElementById("cirStatus");
+    const cirStatusCElm = document.getElementById("cirStatusC");
+
+    // calculate angle
+    const radians = Math.atan(cir_distance / sid);
+    const cirAngle = radians * (180 / Math.PI);
+    console.log(sid, radians, cirAngle);
+
+    // check is angle <3.0
+    let status = "passed";
+    let color = "blue";
+    if (cirAngle > 3.0) {
+      status = "failed";
+      color = "red";
+    }
+
+    cirAngleElm.textContent = cirAngle.toFixed(3);
+    cirStatusElm.textContent = status;
+    cirStatusCElm.textContent = `(${status})`;
+    cirStatusCElm.style.color = color;
+  } else {
+    cirAngleElm.textContent = "-";
+  }
+}
+
+function updateColorCol(colStatus) {
+  const colColor = document.getElementById("colStatus");
+  let color = "blue";
+  if (colStatus != "passed") {
+    color = "red";
+  }
+  colColor.style.color = color;
 }

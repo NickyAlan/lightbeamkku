@@ -35,11 +35,20 @@ nav > ul {
   height: fit-content;
 }
 
+.tableDiv span {
+  display: flex;
+  gap: 3px !important;
+}
+
 #sidInput {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 3px;
+}
+
+#radioForm {
+  margin-left: 3px;
 }
 
 #sidInput input {
@@ -277,10 +286,16 @@ li a:not(#appName a):hover {
 }
 
 #colRes,
-#beamRes {
+#beamRes,
+#colStatus {
   font-family: consolas;
   font-size: 17px;
   margin-bottom: 3px;
+}
+
+#cirStatusC {
+  font-size: 17px;
+  font-family: consolas;
 }
 
 .imageDiv {
@@ -322,6 +337,11 @@ li a:not(#appName a):hover {
   top: 0;
   left: 0;
   pointer-events: none;
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
 }
 
 table {

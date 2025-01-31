@@ -18,15 +18,21 @@ type I32Array = ArrayBase<OwnedRepr<i32>, Dim<[usize; 2]>>;
 type Obj = FileDicomObject<InMemDicomObject>;
 
 #[tauri::command]
-fn preview(file_path: String, save_path: String) {
+fn preview(file_path: String, save_path: String) -> [String; 4] {
     match open_dcm_file(file_path) {
         Some(obj) => {      
             let pixel_data: dicom::pixeldata::DecodedPixelData<'_> = obj.decode_pixel_data().unwrap();
             let arr = pixel_data.to_ndarray::<u16>().unwrap().slice(s![0, .., .., 0]).to_owned();
+            let acquisition_time = get_detail(&obj, tags::ACQUISITION_TIME);
+            let acquisition_date = get_detail(&obj, tags::ACQUISITION_DATE);
+            let detector_id = get_detail(&obj, tags::DETECTOR_ID);
+            let address = get_detail(&obj, tags::INSTITUTION_ADDRESS);
             save_to_image(arr, save_path);
+
+            [detector_id, address, acquisition_date, acquisition_time]
         },
         None => {
-
+            [String::from(""), String::from(""), String::from(""), String::from("")]
         }
     } 
 }
