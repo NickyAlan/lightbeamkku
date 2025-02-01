@@ -18,6 +18,9 @@ jobs:
           toolchain: stable
           target: aarch64-apple-darwin
 
+      - name: Add x86_64-apple-darwin target
+        run: rustup target add x86_64-apple-darwin
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
