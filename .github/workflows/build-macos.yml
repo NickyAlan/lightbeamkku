@@ -39,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macOS-App
-          path: src-tauri/target/release/bundle/macOS/*.app
+          path: src-tauri/*.app
