@@ -35,8 +35,15 @@ jobs:
       - name: Build for macOS
         run: npm run tauri build -- --target universal-apple-darwin
 
+      - name: List build output
+        run: ls -R src-tauri/target/universal-apple-darwin/release/bundle/macos/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: macOS-App
-          path: src-tauri/*.app
+          path: src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
+          if-no-files-found: warn
+          compression-level: 6
+          overwrite: false
+          include-hidden-files: false
