@@ -24,11 +24,15 @@ const backBtn = document.getElementById("backBtn");
 const tableDiv = document.getElementById("tableDiv");
 let sid = 100;
 let criteria = 1;
+let lengthCm;
+let errPercentVal;
+let errStatusVal;
 
 // Database
 const openDb = document.getElementById("openDb");
 const saveDb = document.getElementById("saveDb");
 const helpBtn = document.getElementById("helpBtn");
+const exportBtn = document.getElementById("exportBtn");
 
 let filePathsImage = ["", ""];
 let imageSelectCount = 0;
@@ -36,6 +40,7 @@ let fileCheckInfoL = [0, 0, 0, 0];
 let fileCheckInfoF = [0, 0, 0, 0];
 let largeCheck = false;
 let smallCheck = false;
+let contentCsvList = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 async function process() {
   console.log(filePathsImage);
@@ -68,23 +73,49 @@ async function process() {
   // get results
   const [x, y, h, k] = res[0];
   let [cir_distance, cir_angle] = res[1];
+  contentCsvList[6] = cir_distance.toFixed(3);
+  contentCsvList[7] = cir_angle.toFixed(3);
   let cir_status = "passed";
   let cir_color = "blue";
   if (cir_angle > 3.0) {
     cir_status = "failed";
     cir_color = "red";
   }
+  contentCsvList[8] = cir_status;
   const points = res[2];
   const length = res[3];
+  lengthCm = [
+    length[0][0][0].toFixed(3),
+    length[1][0][0].toFixed(3),
+    length[2][0][0].toFixed(3),
+    length[3][0][0].toFixed(3),
+  ];
+  contentCsvList[1] = lengthCm;
   const errCm = [
     length[0][0][1].toFixed(3),
     length[1][0][1].toFixed(3),
     length[2][0][1].toFixed(3),
     length[3][0][1].toFixed(3),
   ];
+  contentCsvList[2] = errCm;
   const [errPercentage, colStatus] = errPercent(errCm, sid, criteria);
+  errPercentVal = [
+    errPercentage[0][0],
+    errPercentage[1][0],
+    errPercentage[2][0],
+    errPercentage[3][0],
+  ];
+  contentCsvList[3] = errPercentVal;
+  errStatusVal = [
+    errPercentage[0][1],
+    errPercentage[1][1],
+    errPercentage[2][1],
+    errPercentage[3][1],
+  ];
+  contentCsvList[5] = errStatusVal;
   // const pos = res[4];
   const max_err_pos = res[5];
+  contentCsvList[4] = max_err_pos;
   const xpoints = res[6];
   const ypoints = res[7];
   const info = res[8];
@@ -98,7 +129,7 @@ async function process() {
   // add result
   console.log("start");
   await updateTable(
-    length,
+    lengthCm,
     errCm,
     max_err_pos,
     savePath,
@@ -127,6 +158,7 @@ async function process() {
     updateCir(cir_distance, parseFloat(sid));
     updateRowBackground();
     updateCircleRowBackground();
+    contentCsv(sid, criteria);
   });
   // criteria
   document.getElementById("radioForm").addEventListener("change", function () {
@@ -138,6 +170,7 @@ async function process() {
     updateErr(errCm, sid, criteria);
     console.log("Selected option:", selectedOption);
     updateRowBackground();
+    contentCsv(sid, criteria);
   });
 
   // // DEBUG
@@ -207,7 +240,7 @@ function openFilefn() {
 }
 
 async function updateTable(
-  length,
+  lengthCm,
   errCm,
   max_err_pos,
   savePath,
@@ -255,7 +288,7 @@ async function updateTable(
             </tr>
             <tr>
               <td>X<sub>1</sub></td>
-              <td>${length[0][0][0].toFixed(3)}</td>
+              <td>${lengthCm[0]}</td>
               <td>${errCm[0]}</td>
               <td id="err1">${errPercentage[0][0]}</td>
               <td>${max_err_pos[0]}</td>
@@ -263,7 +296,7 @@ async function updateTable(
             </tr>
             <tr>
               <td>X<sub>2</sub></td>
-              <td>${length[1][0][0].toFixed(3)}</td>
+              <td>${lengthCm[1]}</td>
               <td>${errCm[1]}</td>
               <td id="err2">${errPercentage[1][0]}</td>
               <td>${max_err_pos[1]}</td>
@@ -271,7 +304,7 @@ async function updateTable(
             </tr>
             <tr>
               <td>Y<sub>1</sub></td>
-              <td>${length[2][0][0].toFixed(3)}</td>
+              <td>${lengthCm[2]}</td>
               <td>${errCm[2]}</td>
               <td id="err3">${errPercentage[2][0]}</td>
               <td>${max_err_pos[2]}</td>
@@ -279,7 +312,7 @@ async function updateTable(
             </tr>
             <tr>
               <td>Y<sub>2</sub></td>
-              <td>${length[3][0][0].toFixed(3)}</td>
+              <td>${lengthCm[3]}</td>
               <td>${errCm[3]}</td>
               <td id="err4">${errPercentage[3][0]}</td>
               <td>${max_err_pos[3]}</td>
@@ -335,6 +368,7 @@ async function updateTable(
   updateColorCol(colStatus);
   updateRowBackground();
   updateCircleRowBackground();
+  contentCsv(sid, criteria);
 }
 
 async function readFile(size) {
@@ -499,31 +533,34 @@ const popup = document.getElementById("popup");
 const overlay = document.getElementById("overlay");
 const closeBtn = document.getElementById("closeBtn");
 
-// Open popup
+// // Open popup
 openDb.addEventListener("click", () => {
-  let spanList = [40, 402, 35035, 305, 10313, 100, 50, 100, 350, 305, 130];
-  const popupContent = document.querySelector(".popup-content"); // Select the popup content div
-
-  // Clear previous content
-  popupContent.innerHTML = "";
-  spanList.forEach((item) => {
-    const span = document.createElement("span"); // Create a new span element
-    const link = document.createElement("a"); // Create a new anchor element
-    link.href = "#"; // Set the href attribute (can be modified as needed)
-    link.textContent = item; // Set the link text
-    span.appendChild(link); // Append the link to the span
-    popupContent.appendChild(span); // Append the span to the popup content
-
-    // Add click event listener to the link
-    span.addEventListener("click", (event) => {
-      event.preventDefault(); // Prevent default anchor behavior
-      console.log(item); // Log the current item to the console
-    });
-  });
-
-  popup.style.display = "block";
-  overlay.style.display = "block";
+  alert("Not Available!");
 });
+// openDb.addEventListener("click", () => {
+//   let spanList = [40, 402, 35035, 305, 10313, 100, 50, 100, 350, 305, 130];
+//   const popupContent = document.querySelector(".popup-content"); // Select the popup content div
+
+//   // Clear previous content
+//   popupContent.innerHTML = "";
+//   spanList.forEach((item) => {
+//     const span = document.createElement("span"); // Create a new span element
+//     const link = document.createElement("a"); // Create a new anchor element
+//     link.href = "#"; // Set the href attribute (can be modified as needed)
+//     link.textContent = item; // Set the link text
+//     span.appendChild(link); // Append the link to the span
+//     popupContent.appendChild(span); // Append the span to the popup content
+
+//     // Add click event listener to the link
+//     span.addEventListener("click", (event) => {
+//       event.preventDefault(); // Prevent default anchor behavior
+//       console.log(item); // Log the current item to the console
+//     });
+//   });
+
+//   popup.style.display = "block";
+//   overlay.style.display = "block";
+// });
 
 // Close popup
 closeBtn.addEventListener("click", () => {
@@ -587,6 +624,7 @@ saveDb.addEventListener("click", async function () {
 
     // Save the binary data to the selected path
     await writeBinaryFile(savePath, binaryData);
+    alert(`Saved: ${savePath}`);
 
     console.log("Image saved successfully to:", savePath);
   } catch (e) {
@@ -794,7 +832,11 @@ function updateErr(errCm, sid, criteria) {
   ];
   for (let i = 0; i < errPercentage.length; i++) {
     errP[i].textContent = errPercentage[i][0];
+    // errPercentVal
+    contentCsvList[3][i] = errPercentage[i][0];
     statuss[i].textContent = errPercentage[i][1];
+    // errStatusVal
+    contentCsvList[5][i] = errPercentage[i][1];
   }
 
   document.getElementById("colStatus").textContent = `(${colStatus})`;
@@ -820,8 +862,12 @@ function updateCir(cir_distance, sid) {
       color = "red";
     }
 
+    // cirAngle
     cirAngleElm.textContent = cirAngle.toFixed(3);
+    contentCsvList[7] = cirAngle.toFixed(3);
+    // cirStatus
     cirStatusElm.textContent = status;
+    contentCsvList[8] = status;
     cirStatusCElm.textContent = `(${status})`;
     cirStatusCElm.style.color = color;
   } else {
@@ -894,3 +940,49 @@ function isSameDetector(fileCheckInfoL, fileCheckInfoF) {
 helpBtn.addEventListener("click", () => {
   alert("Not Available!");
 });
+
+// save to csv
+exportBtn.addEventListener("click", () => {
+  let contenCsv = contentCsvList[0] + "\n";
+  contenCsv +=
+    "Position, Length(cm), Error(cm), Error(%), Most Error, Status" + "\n";
+  contenCsv +=
+    `X1, ${contentCsvList[1][0]}, ${contentCsvList[2][0]}, ${contentCsvList[3][0]}, ${contentCsvList[4][0]}, ${contentCsvList[5][0]}` +
+    "\n";
+  contenCsv +=
+    `X2, ${contentCsvList[1][1]}, ${contentCsvList[2][1]}, ${contentCsvList[3][1]}, ${contentCsvList[4][1]}, ${contentCsvList[5][1]}` +
+    "\n";
+  contenCsv +=
+    `Y1, ${contentCsvList[1][2]}, ${contentCsvList[2][2]}, ${contentCsvList[3][2]}, ${contentCsvList[4][2]}, ${contentCsvList[5][2]}` +
+    "\n";
+  contenCsv +=
+    `Y2, ${contentCsvList[1][3]}, ${contentCsvList[2][3]}, ${contentCsvList[3][3]}, ${contentCsvList[4][3]}, ${contentCsvList[5][3]}` +
+    "\n";
+  contenCsv += "\n";
+  contenCsv += `Beam Aliagnment (${contentCsvList[8]})` + "\n";
+  contenCsv += "Length(cm), Angle, Status" + "\n";
+  contenCsv +=
+    `${contentCsvList[6]}, ${contentCsvList[7]}, ${contentCsvList[8]}` + "\n";
+  save2Csv("desktop", contenCsv);
+});
+
+async function save2Csv(savePath, contentCsv) {
+  const filePath = await save({
+    filters: [
+      {
+        name: "csv",
+        extensions: ["csv"],
+      },
+    ],
+    defaultPath: savePath,
+  });
+  await invoke("write_csv", { savePath: filePath, content: contentCsv });
+  alert(`Saved: ${filePath}`);
+}
+
+function contentCsv(sid, criteria, errPercentVal) {
+  const colResText = document.getElementById("colRes").textContent.trim();
+  const colStatusText = document.getElementById("colStatus").textContent;
+  const colText = `${colResText} ${colStatusText} with SID: ${sid} cm and ${criteria}% criteria`;
+  contentCsvList[0] = colText;
+}

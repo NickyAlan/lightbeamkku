@@ -1014,7 +1014,7 @@ pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) 
     ([[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]], [[ml, bl], [mr, br], [mt, bt], [mb, bb]])
 }
 
-pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<[String; 1]>) {
+pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<String>) {
     // find length from linear line(m, b)
     // return most err length, middle lenght
     let mut results = vec![];
@@ -1038,12 +1038,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_left_t);
         left_length = 9.0 - max_err;
         // results_pos.push([[top_xl, top_yl], [middle_left, ypoints[1]]]);
-        results_pos_text.push(["top-left".to_string()]);
+        results_pos_text.push("top-left".to_string());
     } else {
         max_err = pixel2cm(ypoints, err_left_b);
         left_length = 9.0 - max_err;
         // results_pos.push([[bottom_xl, bottom_yl], [middle_left, ypoints[1]]]);
-        results_pos_text.push(["bottom-left".to_string()]);
+        results_pos_text.push("bottom-left".to_string());
     }
     // results.push([[left_length, -max_err], [middle_length, -middle_err]]);
     results.push([[left_length, -max_err], [0., 0.]]);
@@ -1063,12 +1063,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_right_t);
         right_length = 9.0 - max_err;
         // results_pos.push([[top_xr, top_yr], [middle_right, ypoints[1]]]);
-        results_pos_text.push(["top-right".to_string()]);
+        results_pos_text.push("top-right".to_string());
     } else {
         max_err = pixel2cm(ypoints, err_right_b);
         right_length = 9.0 - max_err;
         // results_pos.push([[bottom_xr, bottom_yr], [middle_right, ypoints[1]]]);
-        results_pos_text.push(["bottom-right".to_string()]);
+        results_pos_text.push("bottom-right".to_string());
     }
     results.push([[right_length, -max_err], [0., 0.]]);
 
@@ -1087,12 +1087,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_top_l);
         top_length = 7.0 - max_err;
         // results_pos.push([[top_xl, top_yl], [xpoints[1], middle_top]]);
-        results_pos_text.push(["top-left".to_string()]);
+        results_pos_text.push("top-left".to_string());
     } else {
         max_err = pixel2cm(ypoints, err_top_r);
         top_length = 7.0 - max_err;
         // results_pos.push([[top_xr, top_yr], [xpoints[1], middle_top]]);
-        results_pos_text.push(["top-right".to_string()]);
+        results_pos_text.push("top-right".to_string());
     }
     results.push([[top_length, -max_err], [0., 0.]]);
 
@@ -1111,12 +1111,12 @@ pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>
         max_err = pixel2cm(ypoints, err_bottom_l);
         bottom_length = 7.0 - max_err;
         // results_pos.push([[bottom_xl, bottom_yl], [xpoints[1], middle_bottom]]);
-        results_pos_text.push(["bottom-left".to_string()]);
+        results_pos_text.push("bottom-left".to_string());
     } else {
         max_err = pixel2cm(ypoints, err_bottom_r);
         bottom_length = 7.0 - max_err;
         // results_pos.push([[bottom_xr, bottom_yr], [xpoints[1], middle_bottom]]);
-        results_pos_text.push(["bottom-right".to_string()]);
+        results_pos_text.push("bottom-right".to_string());
     }
     results.push([[bottom_length, -max_err], [0., 0.]]);
 

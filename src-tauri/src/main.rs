@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
+use std::fs;
 use tauri::Manager;
 use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line, boxs_posision, find_edges_pos, split_q_circle, farthest_q, center_point};
 use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array, find_edge_tool, find_mean, cast_type_arr, inv_lut, rectangle_edge_points, length_line, distance_pixel, calculate_angle};
@@ -39,7 +40,7 @@ fn preview(file_path: String, save_path: String) -> [String; 4] {
 }
 
 #[tauri::command]
-fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [f32; 2], [[i32; 2]; 4], Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<[String; 1]>, Vec<i32>, Vec<i32>, Vec<String>) {
+fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [f32; 2], [[i32; 2]; 4], Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<String>, Vec<i32>, Vec<i32>, Vec<String>) {
     dbg!(&file_paths, &save_path);
     let large_field = file_paths[0].to_owned();
     let small_field = file_paths[1].to_owned();
@@ -176,12 +177,12 @@ fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [
                     ([x, y, xc as usize, yc as usize], [cir_distance, cir_angle], points, results, vec![[[0i32; 2]; 2]; 2], results_pos_text, xpoints, ypoints, details)
                 },
                 None => {
-                    ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]], vec![[String::from("")]], vec![0], vec![0], vec![String::from("")])
+                    ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]], vec![String::from("")], vec![0], vec![0], vec![String::from("")])
                 }
             }
         }, 
         None => {
-            ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]],  vec![[String::from("")]], vec![0], vec![0], vec![String::from("")])
+            ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]],  vec![String::from("")], vec![0], vec![0], vec![String::from("")])
         }
     }
 }
@@ -262,6 +263,12 @@ fn to_binary_arr(arr: U128Array, cut_off: u128) -> U8Array {
     Array::from_shape_vec((h, w), binary_arr).unwrap()
 }
 
+#[tauri::command]
+fn write_csv(save_path: String, content: String) {
+    let content = content.replace("/n", "\n");
+    fs::write(save_path, content).unwrap();
+}
+
 
 fn main() {
     tauri::Builder::default()
@@ -296,7 +303,7 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![processing, preview])
+        .invoke_handler(tauri::generate_handler![processing, preview, write_csv])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
