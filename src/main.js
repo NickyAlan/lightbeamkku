@@ -28,6 +28,7 @@ let criteria = 1;
 // Database
 const openDb = document.getElementById("openDb");
 const saveDb = document.getElementById("saveDb");
+const helpBtn = document.getElementById("helpBtn");
 
 let filePathsImage = ["", ""];
 let imageSelectCount = 0;
@@ -82,7 +83,7 @@ async function process() {
     length[3][0][1].toFixed(3),
   ];
   const [errPercentage, colStatus] = errPercent(errCm, sid, criteria);
-  const pos = res[4];
+  // const pos = res[4];
   const max_err_pos = res[5];
   const xpoints = res[6];
   const ypoints = res[7];
@@ -124,6 +125,8 @@ async function process() {
     sid = input;
     updateErr(errCm, sid, criteria);
     updateCir(cir_distance, parseFloat(sid));
+    updateRowBackground();
+    updateCircleRowBackground();
   });
   // criteria
   document.getElementById("radioForm").addEventListener("change", function () {
@@ -134,6 +137,7 @@ async function process() {
     console.log("cri:", criteria);
     updateErr(errCm, sid, criteria);
     console.log("Selected option:", selectedOption);
+    updateRowBackground();
   });
 
   // // DEBUG
@@ -183,7 +187,7 @@ function openFilefn() {
   return new Promise((resolve, reject) => {
     open({
       multiple: false,
-      title: "Open DICOM files",
+      title: "Open a DICOM file",
       filters: [
         {
           name: "DICOM",
@@ -329,6 +333,8 @@ async function updateTable(
   document.getElementById("cirStatusC").style.color = cir_color;
 
   updateColorCol(colStatus);
+  updateRowBackground();
+  updateCircleRowBackground();
 }
 
 async function readFile(size) {
@@ -380,25 +386,32 @@ async function readFile(size) {
   // update process button
   console.log(processBtn.style.cursor);
   if (largeCheck && smallCheck) {
-    // check is same detector
-    console.log(fileCheckInfoL, fileCheckInfoF);
     // check is same file
     if (filePathsImage[0] == filePathsImage[1]) {
-      console.log("same image");
+      alert("It's the same File!");
+      removeBtnProcess();
+    } else if (!isSameDetector(fileCheckInfoL, fileCheckInfoF)) {
+      // check is same detector
+      alert("Not same Position!");
+      removeBtnProcess();
+    } else {
+      console.log(largeCheck, smallCheck);
+
+      processBtn.style.background = "blue";
+      processBtn.style.color = "white";
+      processBtn.style.cursor = "pointer";
+      processBtn.addEventListener("click", process);
     }
-
-    console.log(largeCheck, smallCheck);
-
-    processBtn.style.background = "blue";
-    processBtn.style.color = "white";
-    processBtn.style.cursor = "pointer";
-    processBtn.addEventListener("click", process);
   } else {
-    processBtn.style.background = "bisque";
-    processBtn.style.color = "white";
-    processBtn.style.cursor = "default";
-    processBtn.removeEventListener("click", process);
+    removeBtnProcess();
   }
+}
+
+function removeBtnProcess() {
+  processBtn.style.background = "bisque";
+  processBtn.style.color = "white";
+  processBtn.style.cursor = "default";
+  processBtn.removeEventListener("click", process);
 }
 
 async function openFolder() {
@@ -824,3 +837,60 @@ function updateColorCol(colStatus) {
   }
   colColor.style.color = color;
 }
+
+// table passed or failed color chnage
+function updateRowBackground() {
+  for (let i = 1; i <= 4; i++) {
+    // Assuming 4 rows with IDs `sta1`, `sta2`, etc.
+    const statusCell = document.getElementById(`sta${i}`);
+    const row = statusCell.parentElement; // Get the parent <tr> of the status cell
+
+    if (statusCell.textContent.trim() === "failed") {
+      row.style.backgroundColor = "rgba(255, 0, 0, 0.5)";
+    } else {
+      row.style.backgroundColor = ""; // Reset to default if not failed
+    }
+  }
+}
+
+function updateCircleRowBackground() {
+  const statusCell = document.getElementById("cirStatus");
+  const row = statusCell.parentElement;
+
+  if (statusCell.textContent.trim() === "failed") {
+    row.style.backgroundColor = "rgba(255, 0, 0, 0.5)"; // Light red background
+  } else {
+    row.style.backgroundColor = ""; // Reset to default if not failed
+  }
+}
+
+function isSameDetector(fileCheckInfoL, fileCheckInfoF) {
+  const [
+    detector_idL,
+    addressL,
+    acquisition_dateL,
+    acquisition_timeL,
+  ] = fileCheckInfoL;
+  const [
+    detector_idF,
+    addressF,
+    acquisition_dateF,
+    acquisition_timeF,
+  ] = fileCheckInfoF;
+  if (
+    detector_idL == detector_idF &&
+    addressL == addressF &&
+    acquisition_dateL == acquisition_dateF
+  ) {
+    // check is +/- hrs time
+    const hr = 10000;
+    const delta = Math.abs(acquisition_timeL - acquisition_timeF);
+    return delta <= hr;
+  }
+
+  return false;
+}
+
+helpBtn.addEventListener("click", () => {
+  alert("Not Available!");
+});

@@ -1014,112 +1014,113 @@ pub fn rectangle_edge_points(boxs_pos: Vec<[[i32; 2]; 2]>, edges_pos: Vec<i32>) 
     ([[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]], [[ml, bl], [mr, br], [mt, bt], [mb, bb]])
 }
 
-pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<[[i32; 2]; 2]>, Vec<[String; 1]>) {
+pub fn length_line(points: [[i32; 2]; 4], mbs: [[f32; 2]; 4], xpoints: &Vec<i32>, ypoints: &Vec<i32>) -> (Vec<[[f32; 2]; 2]>, Vec<[String; 1]>) {
     // find length from linear line(m, b)
     // return most err length, middle lenght
     let mut results = vec![];
-    let mut results_pos = vec![];
+    // let mut results_pos = vec![];
     let mut results_pos_text = vec![];
     let [[top_xl, top_yl], [top_xr, top_yr], [bottom_xl, bottom_yl], [bottom_xr, bottom_yr]] = points;
     let [[ml, bl], [mr, br], [mt, bt], [mb, bb]] = mbs;
     
     // left
     let max_left_t = ((top_yl as f32 - bl)/ml).round() as i32;
-    let middle_left = ((ypoints[1] as f32 - bl)/ml).round() as i32;
+    // let middle_left = ((ypoints[1] as f32 - bl)/ml).round() as i32;
     let max_left_b = ((bottom_yl as f32 - bl)/ml).round() as i32;
     let err_left_t = max_left_t - xpoints[0];
-    let err_left_m = middle_left - xpoints[0];
+    // let err_left_m = middle_left - xpoints[0];
     let err_left_b = max_left_b - xpoints[0];
     let left_length;
     let max_err;
-    let middle_err = pixel2cm(ypoints, err_left_m);
-    let middle_length = 9.0 - middle_err;
+    // let middle_err = pixel2cm(ypoints, err_left_m);
+    // let middle_length = 9.0 - middle_err;
     if err_left_t.abs() > err_left_b.abs() {
         max_err = pixel2cm(ypoints, err_left_t);
         left_length = 9.0 - max_err;
-        results_pos.push([[top_xl, top_yl], [middle_left, ypoints[1]]]);
+        // results_pos.push([[top_xl, top_yl], [middle_left, ypoints[1]]]);
         results_pos_text.push(["top-left".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_left_b);
         left_length = 9.0 - max_err;
-        results_pos.push([[bottom_xl, bottom_yl], [middle_left, ypoints[1]]]);
+        // results_pos.push([[bottom_xl, bottom_yl], [middle_left, ypoints[1]]]);
         results_pos_text.push(["bottom-left".to_string()]);
     }
-    results.push([[left_length, -max_err], [middle_length, -middle_err]]);
+    // results.push([[left_length, -max_err], [middle_length, -middle_err]]);
+    results.push([[left_length, -max_err], [0., 0.]]);
 
     // right
     let max_right_t = ((top_yr as f32 - br)/mr).round() as i32;
-    let middle_right = ((ypoints[1] as f32 - br)/mr).round() as i32;
+    // let middle_right = ((ypoints[1] as f32 - br)/mr).round() as i32;
     let max_right_b = ((bottom_yr as f32 - br)/mr).round() as i32;
     let err_right_t = xpoints[2] - max_right_t;
-    let err_right_m = xpoints[2] - middle_right;
+    // let err_right_m = xpoints[2] - middle_right;
     let err_right_b = xpoints[2] - max_right_b;
     let right_length;
     let max_err;
-    let middle_err = pixel2cm(ypoints, err_right_m);
-    let middle_length = 9.0 - middle_err;
+    // let middle_err = pixel2cm(ypoints, err_right_m);
+    // let middle_length = 9.0 - middle_err;
     if err_right_t.abs() > err_right_b.abs() {
         max_err = pixel2cm(ypoints, err_right_t);
         right_length = 9.0 - max_err;
-        results_pos.push([[top_xr, top_yr], [middle_right, ypoints[1]]]);
+        // results_pos.push([[top_xr, top_yr], [middle_right, ypoints[1]]]);
         results_pos_text.push(["top-right".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_right_b);
         right_length = 9.0 - max_err;
-        results_pos.push([[bottom_xr, bottom_yr], [middle_right, ypoints[1]]]);
+        // results_pos.push([[bottom_xr, bottom_yr], [middle_right, ypoints[1]]]);
         results_pos_text.push(["bottom-right".to_string()]);
     }
-    results.push([[right_length, -max_err], [middle_length, -middle_err]]);
+    results.push([[right_length, -max_err], [0., 0.]]);
 
     // top
     let max_top_l = ((mt * top_xl as f32) + bt).round() as i32;
-    let middle_top = ((mt * xpoints[1] as f32) + bt).round() as i32;
+    // let middle_top = ((mt * xpoints[1] as f32) + bt).round() as i32;
     let max_top_r = ((mt * top_xr as f32) + bt).round() as i32;
     let err_top_l = max_top_l - ypoints[0];
-    let err_top_m = middle_top - ypoints[0];
+    // let err_top_m = middle_top - ypoints[0];
     let err_top_r = max_top_r - ypoints[0];
     let top_length;
     let max_err;
-    let middle_err = pixel2cm(ypoints, err_top_m);
-    let middle_length = 7.0 - middle_err;
+    // let middle_err = pixel2cm(ypoints, err_top_m);
+    // let middle_length = 7.0 - middle_err;
     if err_top_l.abs() > err_top_r.abs() {
         max_err = pixel2cm(ypoints, err_top_l);
         top_length = 7.0 - max_err;
-        results_pos.push([[top_xl, top_yl], [xpoints[1], middle_top]]);
+        // results_pos.push([[top_xl, top_yl], [xpoints[1], middle_top]]);
         results_pos_text.push(["top-left".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_top_r);
         top_length = 7.0 - max_err;
-        results_pos.push([[top_xr, top_yr], [xpoints[1], middle_top]]);
+        // results_pos.push([[top_xr, top_yr], [xpoints[1], middle_top]]);
         results_pos_text.push(["top-right".to_string()]);
     }
-    results.push([[top_length, -max_err], [middle_length, -middle_err]]);
+    results.push([[top_length, -max_err], [0., 0.]]);
 
     // bottom
     let max_bottom_l = ((mb * bottom_xl as f32) + bb).round() as i32;
-    let middle_bottom = ((mb * xpoints[1] as f32) + bb).round() as i32;
+    // let middle_bottom = ((mb * xpoints[1] as f32) + bb).round() as i32;
     let max_bottom_r = ((mb * bottom_xr as f32) + bb).round() as i32;
     let err_bottom_l = ypoints[2] - max_bottom_l;
-    let err_bottom_m = ypoints[2] - middle_bottom;
+    // let err_bottom_m = ypoints[2] - middle_bottom;
     let err_bottom_r = ypoints[2] - max_bottom_r;
     let bottom_length;
     let max_err;
-    let middle_err = pixel2cm(ypoints, err_bottom_m);
-    let middle_length = 7.0 - middle_err;
+    // let middle_err = pixel2cm(ypoints, err_bottom_m);
+    // let middle_length = 7.0 - middle_err;
     if err_bottom_l.abs() > err_bottom_r.abs() {
         max_err = pixel2cm(ypoints, err_bottom_l);
         bottom_length = 7.0 - max_err;
-        results_pos.push([[bottom_xl, bottom_yl], [xpoints[1], middle_bottom]]);
+        // results_pos.push([[bottom_xl, bottom_yl], [xpoints[1], middle_bottom]]);
         results_pos_text.push(["bottom-left".to_string()]);
     } else {
         max_err = pixel2cm(ypoints, err_bottom_r);
         bottom_length = 7.0 - max_err;
-        results_pos.push([[bottom_xr, bottom_yr], [xpoints[1], middle_bottom]]);
+        // results_pos.push([[bottom_xr, bottom_yr], [xpoints[1], middle_bottom]]);
         results_pos_text.push(["bottom-right".to_string()]);
     }
-    results.push([[bottom_length, -max_err], [middle_length, -middle_err]]);
+    results.push([[bottom_length, -max_err], [0., 0.]]);
 
-    (results, results_pos, results_pos_text)
+    (results, results_pos_text)
 }
 
 pub fn distance_pixel(x1: usize, y1: usize, x2: usize, y2: usize) -> i32 {

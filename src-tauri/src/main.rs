@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod utils;
+use tauri::Manager;
 use crate::utils::{open_dcm_file, save_to_image, get_detail, convert_to_u8, save_to_image_u8, find_common_value, find_center_line, find_theta, rotate_array, fint_horizontal_line, find_vertical_line, boxs_posision, find_edges_pos, split_q_circle, farthest_q, center_point};
 use crate::utils::{U8Array, U16Array, pixel2cm, cm2pixel, U128Array, find_edge_tool, find_mean, cast_type_arr, inv_lut, rectangle_edge_points, length_line, distance_pixel, calculate_angle};
 use std::collections::HashMap;
@@ -155,13 +156,12 @@ fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [
                     // find 4 points(top-left[x, y], top-right, bottom_left, bottom-right) of the edges
                     let (points, mbs) = rectangle_edge_points(boxs_pos, edges_pos);
                     // // Result: left, right, top, bottom [x1, y1, x2, y2, length]
-                    let (results, results_pos, results_pos_text) = length_line(points, mbs, &xpoints, &ypoints);
+                    let (results, results_pos_text) = length_line(points, mbs, &xpoints, &ypoints);
 
                     // Fine the circles
                     let (cir_arr, q_arr, white_ts, (xc, yc)) = split_q_circle(&xpoints, &ypoints, rotated_arr2.clone());
                     let (farthest_q, farthest_point) = farthest_q(q_arr.clone(), white_ts);
                     let (x, y) = center_point(farthest_point, farthest_q, xc, yc);
-                    dbg!(x, y, xc, yc);
                     let cir_distance = pixel2cm(&ypoints, distance_pixel(x, y, xc as usize, yc as usize));
                     let cir_angle = calculate_angle(cir_distance);
                     // dbg!(results, results_pos, points);
@@ -173,7 +173,7 @@ fn processing(file_paths: Vec<String>, save_path: Vec<String>) -> ([usize; 4], [
                     save_to_image_u8(add_arr, save_path[0].to_owned());
                     save_to_image(cir_arr, save_path[1].to_owned());
 
-                    ([x, y, xc as usize, yc as usize], [cir_distance, cir_angle], points, results, results_pos, results_pos_text, xpoints, ypoints, details)
+                    ([x, y, xc as usize, yc as usize], [cir_distance, cir_angle], points, results, vec![[[0i32; 2]; 2]; 2], results_pos_text, xpoints, ypoints, details)
                 },
                 None => {
                     ([0; 4], [0f32; 2], [[0; 2]; 4], vec![[[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2], [[0f32; 2]; 2]], vec![[[0; 2]; 2], [[0; 2]; 2]], vec![[String::from("")]], vec![0], vec![0], vec![String::from("")])
@@ -265,6 +265,37 @@ fn to_binary_arr(arr: U128Array, cut_off: u128) -> U8Array {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Get the main window
+            let window = app.get_window("main").unwrap();
+
+            // Get the current monitor
+            if let Some(monitor) = window.current_monitor().unwrap() {
+                let size = monitor.size(); // Physical size
+                let scale_factor = monitor.scale_factor(); // Scale factor
+
+                // Adjust for scale factor to get logical size
+                let logical_width = size.width as f64 / scale_factor;
+                let logical_height = size.height as f64 / scale_factor;
+
+                // Set the window size and position
+                window
+                    .set_size(tauri::Size::Logical(tauri::LogicalSize {
+                        width: logical_width,
+                        height: logical_height,
+                    }))
+                    .unwrap();
+
+                window
+                    .set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                        x: 0.0,
+                        y: 0.0,
+                    }))
+                    .unwrap();
+            }
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![processing, preview])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
