@@ -155,7 +155,7 @@ async function process() {
     event.target.value = input;
     sid = input;
     updateErr(errCm, sid, criteria);
-    updateCir(cir_distance, parseFloat(sid));
+    // updateCir(cir_distance, parseFloat(sid));
     updateRowBackground();
     updateCircleRowBackground();
     contentCsv(sid, criteria);
@@ -590,11 +590,12 @@ overlay.addEventListener("click", () => {
 // });
 
 saveDb.addEventListener("click", async function () {
+  let defaultPath = fileCheckInfoL.join("-") + ".png";
   try {
     // Open Tauri save dialog to select the file path
     const savePath = await save({
       title: "Save Your Image",
-      defaultPath: "result.png",
+      defaultPath: defaultPath,
       filters: [{ name: "PNG Image", extensions: ["png"] }],
     });
 
@@ -607,7 +608,7 @@ saveDb.addEventListener("click", async function () {
     const canvas = await html2canvas(document.getElementById("resultDisplay"), {
       allowTaint: true,
       useCORS: true,
-      scale: 2, // Scale factor for higher quality
+      scale: 3, // Scale factor for higher quality
     });
 
     // Convert the canvas to base64 PNG
@@ -850,7 +851,7 @@ function updateCir(cir_distance, sid) {
     const cirStatusCElm = document.getElementById("cirStatusC");
 
     // calculate angle
-    const radians = Math.atan(cir_distance / sid);
+    const radians = Math.atan(cir_distance / 16);
     const cirAngle = radians * (180 / Math.PI);
     console.log(sid, radians, cirAngle);
 
@@ -963,7 +964,9 @@ exportBtn.addEventListener("click", () => {
   contenCsv += "Length(cm), Angle, Status" + "\n";
   contenCsv +=
     `${contentCsvList[6]}, ${contentCsvList[7]}, ${contentCsvList[8]}` + "\n";
-  save2Csv("desktop", contenCsv);
+
+  let savePath = fileCheckInfoL.join("-") + ".csv";
+  save2Csv(savePath, contenCsv);
 });
 
 async function save2Csv(savePath, contentCsv) {

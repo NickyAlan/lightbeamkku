@@ -1128,6 +1128,8 @@ pub fn distance_pixel(x1: usize, y1: usize, x2: usize, y2: usize) -> i32 {
     ((x2 as f32 - x1 as f32).powi(2) + (y2 as f32 - y1 as f32).powi(2)).sqrt().round() as i32
 }
 
-pub fn calculate_angle(distance: f32) -> f32 { 
-    distance*2.0
+pub fn calculate_angle(distance: f32) -> f32 {
+    let h = 16.;
+    let angle = (distance / h).atan().to_degrees(); 
+    angle
 }
