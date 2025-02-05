@@ -10,6 +10,9 @@
   },
   "tauri": {
     "allowlist": {
+      "window": {
+        "close": true
+      },
       "all": false,
       "shell": {
         "all": false,

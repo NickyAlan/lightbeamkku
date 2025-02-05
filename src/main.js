@@ -42,6 +42,24 @@ let largeCheck = false;
 let smallCheck = false;
 let contentCsvList = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
+//Trial Version 14day
+checkTrialVersion();
+function checkTrialVersion() {
+  const now = new Date();
+  const targetDate = new Date("2025-02-20");
+  const differenceInMs = targetDate - now;
+  const deltaDays = Math.ceil(differenceInMs / (1000 * 60 * 60 * 24));
+  if (deltaDays <= 0) {
+    alert(`Your trial version has ended!`);
+    setTimeout(() => {
+      const { appWindow } = window.__TAURI__.window;
+      appWindow.close();
+    }, 2000);
+  } else {
+    alert(`Trial version will end in ${deltaDays} days.`);
+  }
+}
+
 async function process() {
   console.log(filePathsImage);
   console.log("processing...");
