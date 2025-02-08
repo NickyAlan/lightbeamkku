@@ -918,7 +918,7 @@ pub fn find_edge_tool(vector: Vec<u128>, n: usize, offset: usize, ts: u128) -> u
     }
 
     let start_val = find_mean(start_vals.clone(), start_vals.len());
-    let edge_ts = 10;
+    let edge_ts = 100;
     let mut cur_edge = 0;
     let mut edge_pos = 0;
     let mut p_val = 0;
